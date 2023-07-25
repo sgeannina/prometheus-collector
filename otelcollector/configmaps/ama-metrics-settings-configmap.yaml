@@ -10,13 +10,13 @@ data:
   prometheus-collector-settings: |-
     cluster_alias = ""
   default-scrape-settings-enabled: |-
-    kubelet = true
+    kubelet = false
     coredns = false
-    cadvisor = true
+    cadvisor = false
     kubeproxy = false
-    apiserver = false
-    kubestate = true
-    nodeexporter = true
+    apiserver = true
+    kubestate = false
+    nodeexporter = false
     windowsexporter = false
     windowskubeproxy = false
     kappiebasic = true
