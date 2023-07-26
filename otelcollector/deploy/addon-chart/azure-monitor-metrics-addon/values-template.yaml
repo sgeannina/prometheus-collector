@@ -60,6 +60,7 @@ global:
     Region: "${AKS_REGION}"
     Customer:
       AzureResourceID: ${AKS_RESOURCE_ID}
+      Namespace: ${AKS_NAMESPACE}
 
 # For ARC backdoor testing
 Azure:

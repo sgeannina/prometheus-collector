@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: ama-metrics-node
-  namespace: kube-system
+  namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
   labels:
     component: ama-metrics
 spec:
@@ -254,7 +254,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: ama-metrics-win-node
-  namespace: kube-system
+  namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
   labels:
     component: ama-metrics
 spec:
@@ -377,32 +377,15 @@ spec:
             initialDelaySeconds: 300
             timeoutSeconds: 15
             failureThreshold: 3
-        - name: addon-token-adapter-win
-          command:
-           - addon-token-adapter-win
-          args:
-           - --secret-namespace=kube-system
-           - --secret-name=aad-msi-auth-token
-           - --token-server-listening-port=7777
-           - --health-server-listening-port=9999
-          image: "mcr.microsoft.com{{ .Values.AzureMonitorMetrics.AddonTokenAdapter.ImageRepositoryWin }}:{{ .Values.AzureMonitorMetrics.AddonTokenAdapter.ImageTagWin }}"
-          imagePullPolicy: Always
-          livenessProbe:
-           httpGet:
-             path: /healthz
-             port: 9999
-           initialDelaySeconds: 10
-           periodSeconds: 60
-          resources:
-           limits:
-             memory: 500Mi
-           requests:
-             cpu: 100m
-             memory: 100Mi
-          securityContext:
-           capabilities:
-             add:
-               - NET_ADMIN
+        - name: msi-adapter
+          env:
+          - name: TOKEN_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: LIVENESS_PROBE_PORT
+            value: "9999"
+          { { - .Values.Azure.Identity.MSIAdapterYaml | nindent 10 } }
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
