@@ -18,6 +18,7 @@ spec:
       labels:
         rsName: ama-metrics
         kubernetes.azure.com/managedby: aks
+        overlaymgr-ignore: "true"
       annotations:
         agentVersion: "0.0.0.1"
         schema-versions: "v1"
