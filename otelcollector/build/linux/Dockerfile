@@ -5,8 +5,12 @@ RUN go version
 RUN go mod download
 COPY ./fluent-bit/src/ .
 RUN apt-get update && apt-get install gcc-aarch64-linux-gnu -y
+# TODO: Remove these lines, only needed for Mac M1/M2. Also remove CC=x86_64-linux-gnu-gcc from the build command below.
+RUN dpkg --add-architecture amd64 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gcc-x86-64-linux-gnu libc6-dev-amd64-cross
 ARG TARGETOS TARGETARCH
-RUN if [ "$TARGETARCH" = "arm64" ] ; then CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=c-shared -ldflags '-extldflags=-Wl,-z,now' -o out_appinsights.so . ; else  CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=c-shared -ldflags '-extldflags=-Wl,-z,now' -o out_appinsights.so . ; fi
+RUN if [ "$TARGETARCH" = "arm64" ] ; then CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=c-shared -ldflags '-extldflags=-W' -o out_appinsights.so . ; else  CGO_ENABLED=1 CC=x86_64-linux-gnu-gcc GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=c-shared -ldflags '-extldflags=-W' -o out_appinsights.so . ; fi
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/oss/go/microsoft/golang:1.19 as otelcollector-builder
 WORKDIR /src
@@ -20,8 +24,12 @@ WORKDIR /src/opentelemetry-collector-builder
 RUN go mod download
 COPY ./opentelemetry-collector-builder /src/opentelemetry-collector-builder
 COPY ./prometheusreceiver /src/prometheusreceiver
+# TODO: Remove these lines, only needed for Mac M1/M2. Also remove CC=x86_64-linux-gnu-gcc from the build command below.
+RUN dpkg --add-architecture amd64 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gcc-x86-64-linux-gnu libc6-dev-amd64-cross
 ARG TARGETOS TARGETARCH
-RUN if [ "$TARGETARCH" = "arm64" ] ; then CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=pie -ldflags '-linkmode external -extldflags=-Wl,-z,now' -o otelcollector . ; else CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=pie -ldflags '-linkmode external -extldflags=-Wl,-z,now' -o otelcollector . ; fi
+RUN if [ "$TARGETARCH" = "arm64" ] ; then CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=pie -ldflags '-linkmode external -extldflags=-W' -o otelcollector . ; else CGO_ENABLED=1 CC=x86_64-linux-gnu-gcc GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=pie -ldflags '-linkmode external -extldflags=-W' -o otelcollector . ; fi
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/oss/go/microsoft/golang:1.19 as prom-config-validator-builder
 WORKDIR /src
@@ -35,8 +43,12 @@ WORKDIR /src/prom-config-validator-builder
 RUN go mod download
 COPY ./prom-config-validator-builder /src/prom-config-validator-builder
 COPY ./prometheusreceiver /src/prometheusreceiver
+# TODO: Remove these lines, only needed for Mac M1/M2. Also remove CC=x86_64-linux-gnu-gcc from the build command below.
+RUN dpkg --add-architecture amd64 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gcc-x86-64-linux-gnu libc6-dev-amd64-cross
 ARG TARGETOS TARGETARCH
-RUN if [ "$TARGETARCH" = "arm64" ] ; then CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=pie -ldflags '-linkmode external -extldflags=-Wl,-z,now' -o promconfigvalidator . ; else CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=pie -ldflags '-linkmode external -extldflags=-Wl,-z,now' -o promconfigvalidator . ; fi
+RUN if [ "$TARGETARCH" = "arm64" ] ; then CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=pie -ldflags '-linkmode external -extldflags=-W' -o promconfigvalidator . ; else CGO_ENABLED=1 CC=x86_64-linux-gnu-gcc GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildmode=pie -ldflags '-linkmode external -extldflags=-W' -o promconfigvalidator . ; fi
 
 FROM mcr.microsoft.com/cbl-mariner/base/core:2.0 as builder
 LABEL description="Azure Monitor Prometheus metrics collector"
