@@ -259,34 +259,6 @@ else
    fi
 fi
 
-if [ "${MAC}" == "true" ]; then
-      #wait for addon-token-adapter to be healthy
-      tokenAdapterWaitsecs=60
-      waitedSecsSoFar=1
-      while true; do
-            if [ $waitedSecsSoFar -gt $tokenAdapterWaitsecs ]; then
-                  wget -T 2 -S http://localhost:9999/healthz 2>&1
-                  echo "giving up waiting for token adapter to become healthy after $waitedSecsSoFar secs"
-                  # log telemetry about failure after waiting for waitedSecsSoFar and break
-                  echo "export tokenadapterUnhealthyAfterSecs=$waitedSecsSoFar" >>~/.bashrc
-                  break
-            else
-                  echo "checking health of token adapter after $waitedSecsSoFar secs"
-                  tokenAdapterResult=$(wget -T 2 -S http://localhost:9999/healthz 2>&1| grep HTTP/|awk '{print $2}'| grep 200)
-            fi
-            if [ ! -z $tokenAdapterResult ]; then
-                        echo "found token adapter to be healthy after $waitedSecsSoFar secs" 
-                        # log telemetry about success after waiting for waitedSecsSoFar and break
-                        echo "export tokenadapterHealthyAfterSecs=$waitedSecsSoFar" >>~/.bashrc
-                        break
-            fi
-            sleep 1
-            waitedSecsSoFar=$(($waitedSecsSoFar + 1))
-      done
-      source ~/.bashrc
-      #end wait for addon-token-adapter to be healthy
-fi
-
 export ME_CONFIG_FILE=$meConfigFile	
 export FLUENT_BIT_CONFIG_FILE=$fluentBitConfigFile
 echo "export ME_CONFIG_FILE=$meConfigFile" >> ~/.bashrc
