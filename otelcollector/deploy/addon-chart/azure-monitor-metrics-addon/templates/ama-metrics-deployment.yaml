@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ama-metrics
+  namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
   labels:
     component: ama-metrics
 spec:
