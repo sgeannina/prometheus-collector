@@ -145,9 +145,9 @@ spec:
           - name: CLIENT_NAME
             value: ama-metrics
           securityContext:
-          capabilities:
-            add:
-              - NET_ADMIN
+           capabilities:
+             add:
+               - NET_ADMIN
       affinity:
         nodeAffinity:
           # affinity to schedule on to ephemeral os node if its available
