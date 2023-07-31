@@ -6,19 +6,19 @@ apiVersion: clusterconfig.azure.com/v1beta1
 kind: AzureExtensionIdentity
 metadata:
   name: {{ .Values.Azure.Extension.Name }}
-  namespace: azure-arc
+  namespace:  {{ .Values.global.commonGlobals.Customer.Namespace }}
 spec:
   serviceAccounts:
     - name: ama-metrics-serviceaccount
       namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
-  tokenNamespace: azure-arc
+  tokenNamespace:  {{ .Values.global.commonGlobals.Customer.Namespace }}
 ---
 {{- end }}
 apiVersion:  clusterconfig.azure.com/v1beta1
 kind: AzureClusterIdentityRequest
 metadata:
   name: ama-metrics-clusteridentityrequest
-  namespace: azure-arc
+  namespace:  {{ .Values.global.commonGlobals.Customer.Namespace }}
 spec:
   {{- if eq (.Values.Azure.Cluster.Cloud | lower) "azurepubliccloud" }}
   audience: https://monitor.azure.com/
