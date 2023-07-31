@@ -1,0 +1,20 @@
+kind: ConfigMap
+apiVersion: v1
+data:
+  prometheus-config: |-
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+    - job_name: kube-apiserver
+      follow_redirects: false
+      scrape_interval: 1m
+      sample_limit: 0
+      scheme: https
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - {{ .Values.global.commonGlobals.Customer.Namespace }}
+metadata:
+  name: ama-metrics-prometheus-config
+  namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
