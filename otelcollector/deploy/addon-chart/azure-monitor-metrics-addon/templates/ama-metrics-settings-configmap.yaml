@@ -1,0 +1,53 @@
+kind: ConfigMap
+apiVersion: v1
+data:
+  schema-version:
+    #string.used by agent to parse config. supported versions are {v1}. Configs with other schema versions will be rejected by the agent.
+    v1
+  config-version:
+    #string.used by customer to keep track of this config file's version in their source control/repository (max allowed 10 chars, other chars will be truncated)
+    ver1
+  prometheus-collector-settings: |-
+    default_metric_account_name = "default"
+    cluster_alias = ""
+  default-scrape-settings-enabled: |-
+    kubelet = true
+    coredns = true
+    cadvisor = true
+    kubeproxy = true
+    apiserver = true
+    kubestate = true
+    nodeexporter = true
+    prometheuscollectorhealth = true
+    windowsexporter = false
+    windowskubeproxy = false
+  default-targets-metrics-keep-list: |-
+    kubelet = ""
+    coredns = ""
+    cadvisor = ""
+    kubeproxy = ""
+    apiserver = ""
+    kubestate = ""
+    nodeexporter = ""
+    windowsexporter = ""
+    windowskubeproxy = ""
+  debug-mode: |-
+    enabled = false
+  default-targets-scrape-interval-settings: |-
+    kubelet = "30s"
+    coredns = "30s"
+    cadvisor = "30s"
+    kubeproxy = "30s"
+    apiserver = "30s"
+    kubestate = "30s"
+    nodeexporter = "30s"
+    prometheuscollectorhealth = "30s"
+    windowsexporter = "30s"
+    windowskubeproxy = "30s"
+metadata:
+  name: ama-metrics-settings-configmap
+  namespace: default
+  labels:
+    helm.sh/chart: prometheus-collector-6.7.0-main-05-04-2023-4450ad10
+    app.kubernetes.io/version: "6.7.0-main-05-04-2023-4450ad10"
+    app.kubernetes.io/managed-by: Helm
