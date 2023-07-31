@@ -42,12 +42,7 @@ AzureMonitorMetrics:
   # Please update these with the latest ones from here so that you get the image that is currently deployed by the AKS RP -
   # Repository: https://msazure.visualstudio.com/CloudNativeCompute/_git/aks-rp?path=/ccp/charts/addon-charts/azure-monitor-metrics-addon/templates/ama-metrics-daemonset.yaml&version=GBrashmi/prom-addon-arm64&line=136&lineEnd=136&lineStartColumn=56&lineEndColumn=85&lineStyle=plain&_a=contents
   # ImageTag: https://msazure.visualstudio.com/CloudNativeCompute/_git/aks-rp?path=/ccp/charts/kube-control-plane/templates/_images.tpl&version=GBrashmi/prom-addon-arm64&line=530&lineEnd=530&lineStartColumn=28&lineEndColumn=53&lineStyle=plain&_a=contents
-  AddonTokenAdapter:
-    ImageRepository: "/aks/msi/addon-token-adapter"
-    ImageTag: "master.221118.2"
-    ImageRepositoryWin: "/aks/hcp/addon-token-adapter"
-    ImageTagWin: "20230120winbeta"
-  ArcExtension: ${ARC_EXTENSION}
+  ArcExtension: false
   # Do not change the below settings. They are reserved for Arc Autonomous
   isArcACluster: false
   arcAutonomousSettings:
@@ -61,6 +56,9 @@ global:
     Customer:
       AzureResourceID: ${AKS_RESOURCE_ID}
       Namespace: ${AKS_NAMESPACE}
+      SubscriptionId: ${SUBSCRIPTION_ID} #msi-adapter
+      ResourceGroupName: ${RESOURCE_GROUP} #msi-adapter
+      ManagedClusterName: ${AKS_CLUSTER_NAME} #msi-adapter
 
 # For ARC backdoor testing
 Azure:
@@ -92,7 +90,7 @@ Azure:
         - name: TEST_MODE
           value: "false"
         - name: TEST_FILE
-          value: "/data/token"
+          value: ""
         image: "mcr.microsoft.com/azurearck8s/msi-adapter:1.0.4"
         securityContext:
           capabilities:

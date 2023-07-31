@@ -326,7 +326,7 @@ else
       source ~/.bashrc
       echo_var "customRegion" "$trimmedRegion"
 
-      echo "Waiting for 10s for token adapter sidecar to be up and running so that it can start serving IMDS requests"
+      echo "Waiting for 10s for msi adapter sidecar to be up and running so that it can start serving IMDS requests"
       # sleep for 10 seconds
       sleep 10
 

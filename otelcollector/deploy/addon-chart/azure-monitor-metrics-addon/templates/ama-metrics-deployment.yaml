@@ -29,7 +29,7 @@ spec:
       serviceAccountName: ama-metrics-serviceaccount
       containers:
         - name: prometheus-collector
-          image: "ninaccpmetrics.azurecr.io/prometheus-collector:6.7.0-main-26-07-2023-413ca73"
+          image: "ninaccpmetrics.azurecr.io/prometheus-collector:6.7.0-main-26-07-2023-11"
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -141,7 +141,7 @@ spec:
           - name: MANAGED_CLUSTER_NAME
             value: "{{ .Values.global.commonGlobals.Customer.ManagedClusterName }}"
           - name: CONTROL_PLANE_ID
-            value: "{{ .Values.global.commonGlobals.Customer.ControlPlaneId }}"
+            value: "{{ .Values.global.commonGlobals.Customer.Namespace }}"
           - name: CLIENT_NAME
             value: ama-metrics
           securityContext:
