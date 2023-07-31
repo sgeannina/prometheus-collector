@@ -29,7 +29,7 @@ spec:
       serviceAccountName: ama-metrics-serviceaccount
       containers:
         - name: prometheus-collector
-          image: "ninaccpmetrics.azurecr.io/prometheus-collector:6.7.0-main-26-07-2023-11"
+          image: "ninaccpmetrics.azurecr.io/prometheus-collector:6.7.0-main-26-07-2023-12"
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -81,14 +81,10 @@ spec:
                   containerName: prometheus-collector
                   resource: limits.memory
                   divisor: 1Mi
-            - name: KUBE_STATE_NAME
-              value: ama-metrics-ksm
             - name: NODE_EXPORTER_NAME
               value: "" # Replace this with the node exporter shipped out of box with AKS
             - name: NODE_EXPORTER_TARGETPORT
               value: "19100"
-            - name: KUBE_STATE_VERSION
-              value: "mcr.microsoft.com/oss/kubernetes/kube-state-metrics:v2.8.1"
             - name: NODE_EXPORTER_VERSION
               value: "v1.5.0" # Replace this with the version shipped by default
             - name: AGENT_VERSION

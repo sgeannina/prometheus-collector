@@ -19,7 +19,7 @@ data:
     nodeexporter = false
     windowsexporter = false
     windowskubeproxy = false
-    kappiebasic = true
+    kappiebasic = false
     prometheuscollectorhealth = false
   # Regex for which namespaces to scrape through pod annotation based scraping.
   # This is none by default. Use '.*' to scrape all namespaces of annotated pods.

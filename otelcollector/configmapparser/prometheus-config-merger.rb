@@ -30,7 +30,6 @@ LOGGING_PREFIX = "prometheus-config-merger"
 @cadvisorDefaultFileDs = @defaultPromConfigPathPrefix + "cadvisorDefaultDs.yml"
 @kubeproxyDefaultFile = @defaultPromConfigPathPrefix + "kubeproxyDefault.yml"
 @apiserverDefaultFile = @defaultPromConfigPathPrefix + "apiserverDefault.yml"
-@kubestateDefaultFile = @defaultPromConfigPathPrefix + "kubestateDefault.yml"
 @nodeexporterDefaultFileRsSimple = @defaultPromConfigPathPrefix + "nodeexporterDefaultRsSimple.yml"
 @nodeexporterDefaultFileRsAdvanced = @defaultPromConfigPathPrefix + "nodeexporterDefaultRsAdvanced.yml"
 @nodeexporterDefaultFileDs = @defaultPromConfigPathPrefix + "nodeexporterDefaultDs.yml"
@@ -528,7 +527,7 @@ def setDefaultFileScrapeInterval(scrapeInterval)
   defaultFilesArray = [
     @kubeletDefaultFileRsSimple, @kubeletDefaultFileRsAdvanced, @kubeletDefaultFileDs, @kubeletDefaultFileRsAdvancedWindowsDaemonset,
     @corednsDefaultFile, @cadvisorDefaultFileRsSimple, @cadvisorDefaultFileRsAdvanced, @cadvisorDefaultFileDs, @kubeproxyDefaultFile,
-    @apiserverDefaultFile, @kubestateDefaultFile, @nodeexporterDefaultFileRsSimple, @nodeexporterDefaultFileRsAdvanced, @nodeexporterDefaultFileDs,
+    @apiserverDefaultFile, @nodeexporterDefaultFileRsSimple, @nodeexporterDefaultFileRsAdvanced, @nodeexporterDefaultFileDs,
     @prometheusCollectorHealthDefaultFile, @windowsexporterDefaultRsSimpleFile, @windowsexporterDefaultDsFile,
     @windowskubeproxyDefaultFileRsSimpleFile, @windowskubeproxyDefaultDsFile, @podannotationsDefaultFile
   ]
