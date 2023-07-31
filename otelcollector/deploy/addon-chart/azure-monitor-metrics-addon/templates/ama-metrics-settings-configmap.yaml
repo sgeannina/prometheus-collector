@@ -46,8 +46,4 @@ data:
     windowskubeproxy = "30s"
 metadata:
   name: ama-metrics-settings-configmap
-  namespace: default
-  labels:
-    helm.sh/chart: prometheus-collector-6.7.0-main-05-04-2023-4450ad10
-    app.kubernetes.io/version: "6.7.0-main-05-04-2023-4450ad10"
-    app.kubernetes.io/managed-by: Helm
+  namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
