@@ -15,11 +15,6 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
     action: keep
     regex: default;kubernetes;https
-    # apply a temporary label
-  - source_labels: [ __name__ ]
-    action: keep
-    regex: apiserver_(current_inflight_requests|request_total|storage_objects|admission_webhook_admission_duration_seconds_count|crd_webhook_conversion_duration_seconds_count|flowcontrol_(request_concurrency_limit|request_concurrency_in_use|dispatched_requests_total|current_inqueue_requests|current_executing_requests|rejected_requests_total)|cache_list_(fetched_objects_total|returned_objects_total|total)|storage_list_(evaluated_objects_total|fetched_objects_total|returned_objects_total|total)|requested_deprecated_apis)|etcd_object_counts|aggregator_unavailable_apiservice|rest_client_requests_total|process_(start_time_seconds|virtual_memory_bytes|cpu_seconds_total)
-
 - job_name: prometheus_collector_health
   label_limit: 63
   label_name_length_limit: 511
