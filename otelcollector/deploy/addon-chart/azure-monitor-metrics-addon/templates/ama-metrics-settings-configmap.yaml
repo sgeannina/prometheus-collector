@@ -9,13 +9,14 @@ data:
     default_metric_account_name = "default"
     cluster_alias = ""
   default-scrape-settings-enabled: |-
-    kubelet = true
-    coredns = true
-    cadvisor = true
-    kubeproxy = true
-    kubestate = true
-    nodeexporter = true
-    prometheuscollectorhealth = true
+    kubelet = false
+    coredns = false
+    cadvisor = false
+    kubeproxy = false
+    kubestate = false
+    apiserver = false
+    nodeexporter = false
+    prometheuscollectorhealth = false
     windowsexporter = false
     windowskubeproxy = false
   default-targets-metrics-keep-list: |-
