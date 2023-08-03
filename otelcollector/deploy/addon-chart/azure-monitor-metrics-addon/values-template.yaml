@@ -1,40 +1,4 @@
 AzureMonitorMetrics:
-  KubeStateMetrics:
-# Uncomment the below 2 settings if you want to pass in the labels and/or annotations
-    #MetricLabelsAllowlist: "testlabel=[.*]"
-    #MetricAnnotationsAllowList: ""
-    ImageRepository: "/oss/kubernetes/kube-state-metrics"
-# Kube-state-metrics ImageTag - 2.8.1, corresponds to chart version - 4.32.0
-    ImageTag: "v2.8.1"
-    Collectors:
-      - certificatesigningrequests
-      - configmaps
-      - cronjobs
-      - daemonsets
-      - deployments
-      - endpoints
-      - horizontalpodautoscalers
-      - ingresses
-      - jobs
-      - leases
-      - limitranges
-      - mutatingwebhookconfigurations
-      - namespaces
-      - networkpolicies
-      - nodes
-      - persistentvolumeclaims
-      - persistentvolumes
-      - poddisruptionbudgets
-      - pods
-      - replicasets
-      - replicationcontrollers
-      - resourcequotas
-      - secrets
-      - services
-      - statefulsets
-      - storageclasses
-      - validatingwebhookconfigurations
-      - volumeattachments
   ImageRepository: ${MCR_REPOSITORY}
   ImageTag: ${IMAGE_TAG}
   ImageTagWin: ${IMAGE_TAG}-win

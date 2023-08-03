@@ -29,7 +29,7 @@ spec:
       serviceAccountName: ama-metrics-serviceaccount
       containers:
         - name: prometheus-collector
-          image: "ninaccpmetrics.azurecr.io/prometheus-collector:6.7.0-main-26-07-2023-15"
+          image: "{{ .Values.AzureMonitorMetrics.ImageRepository }}:{{ .Values.AzureMonitorMetrics.ImageTag }}"
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -88,7 +88,7 @@ spec:
             - name: NODE_EXPORTER_VERSION
               value: "v1.5.0" # Replace this with the version shipped by default
             - name: AGENT_VERSION
-              value: 6.7.0-main-05-04-2023-4450ad10
+              value: {{ .Values.AzureMonitorMetrics.ImageTag }}
             - name: MODE
               value: "advanced" # only supported mode is 'advanced', any other value will be the default/non-advance mode
             - name: WINMODE
