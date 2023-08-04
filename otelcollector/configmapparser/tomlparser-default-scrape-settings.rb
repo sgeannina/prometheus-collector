@@ -10,18 +10,18 @@ LOGGING_PREFIX = "default-scrape-settings"
 @configVersion = ""
 @configSchemaVersion = ""
 
-@kubeletEnabled = false
-@corednsEnabled = false
-@cadvisorEnabled = false
-@kubeproxyEnabled = false
+@kubeletEnabled = true
+@corednsEnabled = true
+@cadvisorEnabled = true
+@kubeproxyEnabled = true
 @apiserverEnabled = true
-@kubestateEnabled = false
-@nodeexporterEnabled = false
+@kubestateEnabled = true
+@nodeexporterEnabled = true
 @prometheusCollectorHealthEnabled = true
 @podannotationEnabled = false
 @windowsexporterEnabled = false
 @windowskubeproxyEnabled = false
-@kappiebasicEnabled = false
+@kappiebasicEnabled = true
 @noDefaultsEnabled = false
 @sendDSUpMetric = false
 

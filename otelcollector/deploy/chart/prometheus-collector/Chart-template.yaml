@@ -24,11 +24,11 @@ version: ${HELM_SEMVER}
 appVersion: "${IMAGE_TAG}"
 kubeVersion: ">=1.16.0-0"
 dependencies:
-  - name: kube-state-metrics
-    version: "4.32.0"
-    repository: oci://${MCR_REGISTRY}${MCR_REPOSITORY_HELM_DEPENDENCIES}
-    condition: scrapeTargets.kubeState
-  - name: prometheus-node-exporter
-    version: "4.14.0"
-    repository: oci://${MCR_REGISTRY}${MCR_REPOSITORY_HELM_DEPENDENCIES}
-    condition: scrapeTargets.nodeExporter
+- name: kube-state-metrics
+  version: "5.10.1"
+  repository: oci://${MCR_REGISTRY}${MCR_REPOSITORY_HELM_DEPENDENCIES}
+  condition: scrapeTargets.kubeState
+- name: prometheus-node-exporter
+  version: "4.21.0"
+  repository: oci://${MCR_REGISTRY}${MCR_REPOSITORY_HELM_DEPENDENCIES}
+  condition: scrapeTargets.nodeExporter
