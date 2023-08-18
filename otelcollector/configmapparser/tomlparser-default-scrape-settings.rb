@@ -130,12 +130,6 @@ def populateSettingValuesFromConfigMap(parsedConfig)
       windowsDaemonset = true
     end
 
-    # ccp-metrics addon settings for api-server (old flag) and kube-apiserver (new flag)
-    if @apiserverEnabled && @kubeapiserverEnabled
-      # honor the old flag, this is a very unlikely scenario
-      kubeapiserverEnabled = false
-    end
-
     ccpmetricsEnabled = @isCcpMetricsDeploymentEnabled && (@kubecontrollermanagerEnabled || @kubeschedulerEnabled || @kubeapiserverEnabled || @clusterautoscalerEnabled || @etcdEnabled)
     if ENV["MODE"].nil? && ENV["MODE"].strip.downcase == "advanced"
       controllerType = ENV["CONTROLLER_TYPE"]
@@ -162,6 +156,35 @@ def populateSettingValuesFromConfigMap(parsedConfig)
   end
 end
 
+# Use parser to parse the configmap toml file to a ruby structure
+def disableScrapeTargetsByDeployment
+  if @isCcpMetricsDeploymentEnabled
+    ConfigParseErrorLogger.logWarning(LOGGING_PREFIX, "CCP_METRICS mode is enabled. Disable targets from customer nodes after config map processing....")
+
+    @kubestateEnabled = false
+    @cadvisorEnabled = false
+    @kubeletEnabled = false
+    @kappiebasicEnabled = false
+    @nodeexporterEnabled = false
+    @corednsEnabled = false
+    @kubeproxyEnabled = false
+
+    # ccp-metrics addon settings for api-server (old flag) and kube-apiserver (new flag)
+    if @apiserverEnabled && @kubeapiserverEnabled
+      # honor the old flag, this is a very unlikely scenario
+      kubeapiserverEnabled = false
+    end
+  else
+    ConfigParseErrorLogger.logWarning(LOGGING_PREFIX, "CCP_METRICS mode is disabled. Disable targets from Customer Control Plane after config map processing....")
+
+    @clusterautoscalerEnabled = false
+    @kubecontrollermanagerEnabled = false
+    @kubeschedulerEnabled = false
+    @kubeapiserverEnabled = false
+    @etcdEnabled = false
+  end
+end
+
 @configSchemaVersion = ENV["AZMON_AGENT_CFG_SCHEMA_VERSION"]
 ConfigParseErrorLogger.logSection(LOGGING_PREFIX, "Start default-scrape-settings Processing")
 # set default targets for MAC mode
@@ -183,26 +206,9 @@ else
     ConfigParseErrorLogger.logError(LOGGING_PREFIX, "Unsupported/missing config schema version - '#{@configSchemaVersion}' , using defaults, please use supported schema version")
   end
 end
-# set default targets for ccp metrics enabled
-if @isCcpMetricsDeploymentEnabled
-  ConfigParseErrorLogger.logWarning(LOGGING_PREFIX, "CCP_METRICS mode is enabled. Disable targets from customer nodes after config map processing....")
+# disable targets if ccp metrics enabled
+disableScrapeTargetsByDeployment
 
-  @kubestateEnabled = false
-  @cadvisorEnabled = false
-  @kubeletEnabled = false
-  @kappiebasicEnabled = false
-  @nodeexporterEnabled = false
-  @corednsEnabled = false
-  @kubeproxyEnabled = false
-else
-  ConfigParseErrorLogger.logWarning(LOGGING_PREFIX, "CCP_METRICS mode is disabled. Disable targets from Customer Control Plane after config map processing....")
-
-  @clusterautoscalerEnabled = false
-  @kubecontrollermanagerEnabled = false
-  @kubeschedulerEnabled = false
-  @kubeapiserverEnabled = false
-  @etcdEnabled = false
-end
 
 # Write the settings to file, so that they can be set as environment variables
 file = File.open("/opt/microsoft/configmapparser/config_default_scrape_settings_env_var", "w")
