@@ -26,7 +26,7 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
       priorityClassName: system-node-critical
-      serviceAccountName: ama-metrics-cpp-serviceaccount
+      serviceAccountName: ama-metrics-ccp-serviceaccount
       containers:
         - name: prometheus-collector
           image: "{{ .Values.AzureMonitorMetrics.ImageRepository }}:{{ .Values.AzureMonitorMetrics.ImageTag }}"
@@ -102,7 +102,6 @@ spec:
           volumeMounts:
             - mountPath: /etc/config/settings
               name: settings-vol-config
-              readOnly: true
             - mountPath: /etc/config/settings/prometheus
               name: prometheus-config-vol
               readOnly: true
@@ -131,24 +130,64 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
-        - name: msi-adapter
-          image: "mcr.microsoft.com/aks/ccp/msi-adapter:master.230208.1"
+        - name: ama-metrics-config-sync
+          image: mcr.microsoft.com/oss/kubernetes/kubectl:v1.27.2-linux-amd64-1
+          command: [ "/bin/bash", "-c" ]
+          args:
+            - |
+              echo "Initializing ama-metrics-settings configmap..."
+              kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) -o json > /etc/config/settings/ama-metrics-settings-configmap.json
+              jq '.data | to_entries[] | "\(.key) \(.value)"' "/etc/config/settings/ama-metrics-settings-configmap.json" | while read -r key value; do
+                filename=$(echo "$key" | sed "s/[\"']//g")
+                echo "$value" | sed 's/\"$//g' > /etc/config/settings/$filename
+                echo "Created file '/etc/config/settings/$filename'"
+              done
+
+              echo "Watching ama-metrics-settings configmap..."
+              kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) --watch
+              touch > /etc/config/settings/notifysettingschange.txt
+          env:
+            - name: CCP_KUBECONFIG
+              value: /etc/kubernetes/kubeconfig/kubeconfig.yaml
+          volumeMounts:
+            - name: kubeconfig
+              readOnly: true
+              mountPath: /etc/kubernetes/kubeconfig
+            - name: settings-vol-config
+              mountPath: /etc/config/settings
+        - name: addon-token-adapter
+          command:
+            - /addon-token-adapter
+          args:
+            - --secret-namespace=kube-system
+            - --secret-name=aad-msi-auth-token
+            - --token-server-listening-port=7777
+            - --health-server-listening-port=9999
+          image: "mcr.microsoft.com/aks/msi/addon-token-adapter:master.230804.1"
           imagePullPolicy: IfNotPresent
           env:
-          - name: SUBSCRIPTION_ID
-            value: "{{ .Values.global.commonGlobals.Customer.SubscriptionId }}"
-          - name: RESOURCE_GROUP_NAME
-            value: "{{ .Values.global.commonGlobals.Customer.ResourceGroupName }}"
-          - name: MANAGED_CLUSTER_NAME
-            value: "{{ .Values.global.commonGlobals.Customer.ManagedClusterName }}"
-          - name: CONTROL_PLANE_ID
-            value: "{{ .Values.global.commonGlobals.Customer.Namespace }}"
-          - name: CLIENT_NAME
-            value: ama-metrics
+            - name: AZMON_COLLECT_ENV
+              value: "false"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9999
+            initialDelaySeconds: 10
+            periodSeconds: 60
+          resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
+            requests:
+              cpu: 20m
+              memory: 30Mi
           securityContext:
-           capabilities:
-             add:
-               - NET_ADMIN
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_ADMIN
+                - NET_RAW
       affinity:
         nodeAffinity:
           # affinity to schedule on to ephemeral os node if its available
@@ -182,13 +221,14 @@ spec:
                     operator: Exists
       volumes:
         - name: settings-vol-config
-          configMap:
-            name: ama-metrics-settings-configmap
-            optional: true
+          emptyDir: { }
         - name: prometheus-config-vol
           configMap:
             name: ama-metrics-prometheus-config
             optional: true
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig-file
         - name: host-log-containers
           hostPath:
             path: /var/log/containers
