@@ -26,7 +26,7 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
       priorityClassName: system-node-critical
-      serviceAccountName: ama-metrics-serviceaccount
+      serviceAccountName: ama-metrics-cpp-serviceaccount
       containers:
         - name: prometheus-collector
           image: "{{ .Values.AzureMonitorMetrics.ImageRepository }}:{{ .Values.AzureMonitorMetrics.ImageTag }}"
