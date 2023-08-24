@@ -168,6 +168,8 @@ def disableScrapeTargetsByDeployment
     @nodeexporterEnabled = false
     @corednsEnabled = false
     @kubeproxyEnabled = false
+    # we need at least one target to be enabled for ccp-metrics mode to work
+    @prometheusCollectorHealthEnabled = true
 
     # ccp-metrics addon settings for api-server (old flag) and kube-apiserver (new flag)
     if @apiserverEnabled && @kubeapiserverEnabled
