@@ -166,7 +166,7 @@ spec:
           command:
             - /addon-token-adapter
           args:
-            - --secret-namespace={{ .Values.global.commonGlobals.Customer.Namespace }}
+            - --secret-namespace=kube-system
             - --secret-name=aad-msi-auth-token
             - --token-server-listening-port=7777
             - --health-server-listening-port=9999
