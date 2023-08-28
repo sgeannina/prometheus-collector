@@ -27,29 +27,6 @@ spec:
     spec:
       priorityClassName: system-node-critical
       serviceAccountName: ama-metrics-ccp-serviceaccount
-      initContainers:
-        - name: ama-metrics-config-init
-          image: mcr.microsoft.com/oss/kubernetes/kubectl:v1.27.2-linux-amd64-1
-          command: [ "/bin/bash", "-c" ]
-          args:
-            - |
-              echo "Initializing ama-metrics-settings configmap..."
-              settings_file="/etc/config/settings/ama-metrics-settings.json"
-              kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) -o json > $settings_file
-              for key in $(jq -r '.data | keys | .[]' $settings_file); do
-                value=$(jq -r ".data.\"${key}\"" $settings_file)
-                echo -e "$value" > /etc/config/settings/$key
-                echo "Created file '/etc/config/settings/$key'"
-              done
-          env:
-            - name: CCP_KUBECONFIG
-              value: /etc/kubernetes/kubeconfig/kubeconfig.yaml
-          volumeMounts:
-            - name: kubeconfig
-              readOnly: true
-              mountPath: /etc/kubernetes/kubeconfig
-            - name: settings-vol-config
-              mountPath: /etc/config/settings
       containers:
         - name: prometheus-collector
           image: "{{ .Values.AzureMonitorMetrics.ImageRepository }}:{{ .Values.AzureMonitorMetrics.ImageTag }}"
@@ -159,7 +136,23 @@ spec:
           args:
             - |
               echo "Watching ama-metrics-settings configmap..."
-              kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) --watch > /etc/config/settings/inotifysettingschange.txt
+              kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) --watch | while read line; do
+                if [[ $line != "NAME"* ]]; then
+                  rm /etc/config/settings/inotifysettingschange.txt
+                  echo "Change detected: $line"
+
+                  echo "Reading ama-metrics-settings configmap..."
+                  settings_file="/etc/config/settings/ama-metrics-settings.json"
+                  kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) -o json > $settings_file
+                  for key in $(jq -r '.data | keys | .[]' $settings_file); do
+                    value=$(jq -r ".data.\"${key}\"" $settings_file)
+                    echo -e "$value" > /etc/config/settings/$key
+                    echo "Created file '/etc/config/settings/$key'"
+                  done
+
+                  echo $line >> /etc/config/settings/inotifysettingschange.txt
+                fi
+              done
           env:
             - name: CCP_KUBECONFIG
               value: /etc/kubernetes/kubeconfig/kubeconfig.yaml
@@ -173,7 +166,7 @@ spec:
           command:
             - /addon-token-adapter
           args:
-            - --secret-namespace=kube-system
+            - --secret-namespace={{ .Values.global.commonGlobals.Customer.Namespace }}
             - --secret-name=aad-msi-auth-token
             - --token-server-listening-port=7777
             - --health-server-listening-port=9999

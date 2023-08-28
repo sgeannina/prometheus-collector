@@ -47,14 +47,17 @@ echo_var "CLUSTER" "$CLUSTER"
 
 # wait for configmap sync container to finish initialization
 if [ "${CCP_METRICS_ENABLED}" == "true" ]; then
-  echo "Waiting for ama-metrics-config-sync container to finish initialization..."
-  inotifywait -q -e create,modify "$(dirname "/etc/config/settings/inotifysettingschange.txt")"
-  #inotifywait --daemon --recursive "$(dirname "/etc/config/settings/inotifysettingschange.txt")" --outfile "/opt/inotifychange.txt" --event modify,delete --format '%e : %T' --timefmt '+%s'
+  settingsChangedFile="/etc/config/settings/inotifysettingschange.txt"
+  if [ ! -f $settingsChangedFile ]; then
+    echo "Waiting for ama-metrics-config-sync container to finish initialization..."
+    inotifywait -q -e create "$(dirname $settingsChangedFile)"
+  fi
 fi
 
 #Run inotify as a daemon to track changes to the mounted configmap.
+echo "Watching for changes in /etc/config/settings..."
 touch /opt/inotifyoutput.txt
-inotifywait /etc/config/settings --daemon --recursive --outfile "/opt/inotifyoutput.txt" --event create,delete --format '%e : %T' --timefmt '+%s'
+inotifywait /etc/config/settings --daemon --recursive --outfile "/opt/inotifyoutput.txt" --event create,modify,delete --format '%e %w%f: %T' --timefmt '+%s'
 
 # If using a trusted CA for HTTP Proxy, copy this over from the node and install
 cp /anchors/ubuntu/* /etc/pki/ca-trust/source/anchors 2>/dev/null
