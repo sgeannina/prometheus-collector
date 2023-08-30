@@ -168,14 +168,7 @@ def disableScrapeTargetsByDeployment
     @nodeexporterEnabled = false
     @corednsEnabled = false
     @kubeproxyEnabled = false
-    # we need at least one target to be enabled for ccp-metrics mode to work
-    @prometheusCollectorHealthEnabled = true
-
-    # ccp-metrics addon settings for api-server (old flag) and kube-apiserver (new flag)
-    if @apiserverEnabled && @kubeapiserverEnabled
-      # honor the old flag, this is a very unlikely scenario
-      kubeapiserverEnabled = false
-    end
+    @apiserverEnabled = false
   else
     ConfigParseErrorLogger.logWarning(LOGGING_PREFIX, "CCP_METRICS mode is disabled. Disable targets from Customer Control Plane after config map processing....")
 
