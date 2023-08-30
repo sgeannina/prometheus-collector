@@ -147,6 +147,12 @@ spec:
                     if result=$(kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig="$CCP_KUBECONFIG" -o json); then
                       echo "$result" > $settings_file
                       echo "Configmap written to file"
+                      for key in $(jq -r '.data | keys | .[]' $settings_file); do
+                        value=$(jq -r ".data.\"${key}\"" $settings_file)
+                        echo -e "$value" > /etc/config/settings/$key
+                        echo "Created file '/etc/config/settings/$key'"
+                      done
+                      touch /etc/config/settings/inotifysettingschange
                     else
                       echo "Configmap deleted"
                       for key in $(jq -r '.data | keys | .[]' $settings_file); do
@@ -154,15 +160,9 @@ spec:
                         echo "Removed file '/etc/config/settings/$key'"
                       done
                       rm $settings_file
+                      touch /etc/config/settings/inotifysettingschange
                       break
                     fi
-                    for key in $(jq -r '.data | keys | .[]' $settings_file); do
-                      value=$(jq -r ".data.\"${key}\"" $settings_file)
-                      echo -e "$value" > /etc/config/settings/$key
-                      echo "Created file '/etc/config/settings/$key'"
-                    done
-
-                    touch /etc/config/settings/inotifysettingschange
                   fi
                 done
 

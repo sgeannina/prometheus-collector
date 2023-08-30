@@ -52,14 +52,12 @@ if [ "${CCP_METRICS_ENABLED}" == "true" ] && [ ! -f $settingsChangedFile ]; then
   while true; do
     event=$(inotifywait -q -e create --format '%f' $(dirname "$settingsChangedFile"))
     if [[ "$event" == "$(basename "$settingsChangedFile")" ]]; then
-      echo "ama-metrics-config-sync container - Finished initialization"
       break
     fi
   done
 fi
 
 #Run inotify as a daemon to track changes to the mounted configmap.
-echo "Watching for changes in /etc/config/settings..."
 touch /opt/inotifyoutput.txt
 inotifywait /etc/config/settings --daemon --recursive --outfile "/opt/inotifyoutput.txt" --event create,delete --format '%e %w%f: %T' --timefmt '+%s'
 
