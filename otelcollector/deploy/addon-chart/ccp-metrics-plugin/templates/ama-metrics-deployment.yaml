@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ama-metrics
+  name: ama-metrics-cpp
   namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
   labels:
-    component: ama-metrics
+    component: ama-metrics-cpp
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   paused: false
   selector:
     matchLabels:
-      rsName: ama-metrics
+      rsName: ama-metrics-cpp
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        rsName: ama-metrics
+        rsName: ama-metrics-cpp
         kubernetes.azure.com/managedby: aks
         overlaymgr-ignore: "true"
       annotations:
@@ -136,13 +136,13 @@ spec:
           args:
             - |
               echo "Watching ama-metrics-settings configmap..."
+              settings_file="/etc/config/settings/ama-metrics-settings.json"
               kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) --watch | while read line; do
                 if [[ $line != "NAME"* ]]; then
-                  rm /etc/config/settings/inotifysettingschange.txt
-                  echo "Change detected: $line"
+                  rm /etc/config/settings/inotifysettingschange
+                  echo "New configuration detected: $line"
 
                   echo "Reading ama-metrics-settings configmap..."
-                  settings_file="/etc/config/settings/ama-metrics-settings.json"
                   kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) -o json > $settings_file
                   for key in $(jq -r '.data | keys | .[]' $settings_file); do
                     value=$(jq -r ".data.\"${key}\"" $settings_file)
@@ -150,7 +150,7 @@ spec:
                     echo "Created file '/etc/config/settings/$key'"
                   done
 
-                  echo $line >> /etc/config/settings/inotifysettingschange.txt
+                  touch /etc/config/settings/inotifysettingschange
                 fi
               done
           env:
