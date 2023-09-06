@@ -18,6 +18,7 @@ LOGGING_PREFIX = "default-scrape-settings"
 @kubestateEnabled = true
 @nodeexporterEnabled = true
 @prometheusCollectorHealthEnabled = true
+@prometheusCollectorHealthCcpEnabled = true
 @podannotationEnabled = false
 @windowsexporterEnabled = false
 @windowskubeproxyEnabled = false
@@ -124,13 +125,17 @@ def populateSettingValuesFromConfigMap(parsedConfig)
       @etcdEnabled = parsedConfig[:"etcd"]
       puts "config::Using configmap scrape settings for etcd: #{@etcdEnabled}"
     end
+    if !parsedConfig[:"prometheuscollectorhealth-controlplane"].nil?
+      @prometheusCollectorHealthCcpEnabled = parsedConfig[:"prometheuscollectorhealth-controlplane"]
+      puts "config::Using configmap scrape settings for prometheuscollectorhealth-controlplane: #{@prometheusCollectorHealthCcpEnabled}"
+    end
 
     windowsDaemonset = false
     if ENV["WINMODE"].nil? && ENV["WINMODE"].strip.downcase == "advanced"
       windowsDaemonset = true
     end
 
-    ccpmetricsEnabled = @isCcpMetricsDeploymentEnabled && (@kubecontrollermanagerEnabled || @kubeschedulerEnabled || @kubeapiserverEnabled || @clusterautoscalerEnabled || @etcdEnabled)
+    ccpmetricsEnabled = @isCcpMetricsDeploymentEnabled && (@kubecontrollermanagerEnabled || @kubeschedulerEnabled || @kubeapiserverEnabled || @clusterautoscalerEnabled || @etcdEnabled || @prometheusCollectorHealthCcpEnabled)
     if ENV["MODE"].nil? && ENV["MODE"].strip.downcase == "advanced"
       controllerType = ENV["CONTROLLER_TYPE"]
       if controllerType == "DaemonSet" && ENV["OS_TYPE"].downcase == "windows" && !@windowsexporterEnabled && !@windowskubeproxyEnabled && !@kubeletEnabled && !@prometheusCollectorHealthEnabled && !@kappiebasicEnabled
@@ -169,6 +174,7 @@ def disableScrapeTargetsByDeployment
     @corednsEnabled = false
     @kubeproxyEnabled = false
     @apiserverEnabled = false
+    @prometheusCollectorHealthEnabled = false
   else
     ConfigParseErrorLogger.logWarning(LOGGING_PREFIX, "CCP_METRICS mode is disabled. Disable targets from Customer Control Plane after config map processing....")
 
@@ -177,6 +183,7 @@ def disableScrapeTargetsByDeployment
     @kubeschedulerEnabled = false
     @kubeapiserverEnabled = false
     @etcdEnabled = false
+    @prometheusCollectorHealthCcpEnabled = false
   end
 end
 
@@ -232,6 +239,7 @@ if !file.nil?
   file.write($export + "AZMON_PROMETHEUS_KUBE_APISERVER_SCRAPING_ENABLED=#{@kubeapiserverEnabled}\n")
   file.write($export + "AZMON_PROMETHEUS_CLUSTER_AUTOSCALER_SCRAPING_ENABLED=#{@clusterautoscalerEnabled}\n")
   file.write($export + "AZMON_PROMETHEUS_ETCD_SCRAPING_ENABLED=#{@etcdEnabled}\n")
+  file.write($export + "AZMON_PROMETHEUS_COLLECTOR_HEALTH_CCP_SCRAPING_ENABLED=#{@prometheusCollectorHealthCcpEnabled}\n")
   # Close file after writing all metric collection setting environment variables
   file.close
 else

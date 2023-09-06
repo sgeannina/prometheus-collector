@@ -46,7 +46,7 @@ echo_var "CONTROLLER_TYPE" "$CONTROLLER_TYPE"
 echo_var "CLUSTER" "$CLUSTER"
 
 # wait for configmap sync container to finish initialization
-settingsChangedFile="/etc/config/settings/inotifysettingschange"
+settingsChangedFile="/etc/config/settings/inotifysettingscreated"
 if [ "${CCP_METRICS_ENABLED}" == "true" ] && [ ! -f $settingsChangedFile ]; then
   echo "Waiting for ama-metrics-config-sync container to finish initialization..."
   while true; do

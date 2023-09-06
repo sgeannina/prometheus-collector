@@ -4,20 +4,20 @@ metadata:
   name: ama-metrics-cpp
   namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
   labels:
-    component: ama-metrics-cpp
+    component: ama-metrics-ccp
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   paused: false
   selector:
     matchLabels:
-      rsName: ama-metrics-cpp
+      rsName: ama-metrics-ccp
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        rsName: ama-metrics-cpp
+        rsName: ama-metrics-ccp
         kubernetes.azure.com/managedby: aks
         overlaymgr-ignore: "true"
       annotations:
@@ -94,9 +94,9 @@ spec:
             - name: MODE
               value: "advanced" # only supported mode is 'advanced', any other value will be the default/non-advance mode
             - name: WINMODE
-              value: "" # WINDOWS: only supported mode is 'advanced', any other value will be the default/non-advance mode
+              value: ""
             - name: MINIMAL_INGESTION_PROFILE
-              value: "true" # only supported value is the string "true"
+              value: "true" # false scrapes all metrics
           securityContext:
             privileged: false
           volumeMounts:
@@ -139,34 +139,36 @@ spec:
               settings_file="/etc/config/settings/ama-metrics-settings.json"
               while true; do
                 kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) --watch | while read line; do
-                  if [[ $line != "NAME"* ]]; then
-                    rm /etc/config/settings/inotifysettingschange
-                    echo "New configuration detected: $line"
+                  if [[ $line == "NAME"* ]]; then
+                    # skip header
+                    continue
+                  fi
 
-                    echo "Reading ama-metrics-settings configmap"
-                    if result=$(kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig="$CCP_KUBECONFIG" -o json); then
-                      echo "$result" > $settings_file
-                      echo "Configmap written to file"
-                      for key in $(jq -r '.data | keys | .[]' $settings_file); do
-                        value=$(jq -r ".data.\"${key}\"" $settings_file)
-                        echo -e "$value" > /etc/config/settings/$key
-                        echo "Created file '/etc/config/settings/$key'"
-                      done
-                      touch /etc/config/settings/inotifysettingschange
-                    else
-                      echo "Configmap deleted"
-                      for key in $(jq -r '.data | keys | .[]' $settings_file); do
-                        rm /etc/config/settings/$key
-                        echo "Removed file '/etc/config/settings/$key'"
-                      done
-                      rm $settings_file
-                      touch /etc/config/settings/inotifysettingschange
-                      break
-                    fi
+                  echo "New configuration detected: $line"
+                  rm /etc/config/settings/inotifysettingscreated
+                  echo "Reading ama-metrics-settings configmap"
+                  if result=$(kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig="$CCP_KUBECONFIG" -o json); then
+                    echo "$result" > $settings_file
+                    echo "Configmap written to file"
+                    for key in $(jq -r '.data | keys | .[]' $settings_file); do
+                      value=$(jq -r ".data.\"${key}\"" $settings_file)
+                      echo -e "$value" > /etc/config/settings/$key
+                      echo "Created file '/etc/config/settings/$key'"
+                    done
+                    touch /etc/config/settings/inotifysettingscreated
+                  else
+                    echo "Configmap deleted"
+                    for key in $(jq -r '.data | keys | .[]' $settings_file); do
+                      rm /etc/config/settings/$key
+                      echo "Removed file '/etc/config/settings/$key'"
+                    done
+                    rm $settings_file
+                    touch /etc/config/settings/inotifysettingscreated
+                    break
                   fi
                 done
 
-                touch /etc/config/settings/inotifysettingschange
+                touch /etc/config/settings/inotifysettingscreated
                 echo "Waiting for configmap to be created..."
                 sleep 60
               done
