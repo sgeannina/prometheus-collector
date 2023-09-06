@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ama-metrics-cpp
+  name: ama-metrics-ccp
   namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
   labels:
     component: ama-metrics-ccp
