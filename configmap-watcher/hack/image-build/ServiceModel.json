@@ -1,0 +1,51 @@
+{
+    "$schema": "http://schema.express.azure.com/schemas/2015-01-01-alpha/ServiceModel.json",
+    "contentVersion": "1.0.0.0",
+    "ServiceMetadata": {
+        "ServiceGroup": "AKS Image Push",
+        "Environment": "Prod"
+    },
+    "ServiceResourceGroupDefinitions": [
+        {
+            "Name": "ScriptsResourceGroupDefinition",
+            "ServiceResourceDefinitions": [
+                {
+                    "name": "ACRPush",
+                    "ComposedOf": {
+                        "Extension": {
+                            "Shell": [
+                                {
+                                    "type": "aksacrpush",
+                                    "properties": {
+                                        "imageName": "adm-ubuntu-1804-l",
+                                        "imageVersion": "v18"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "ServiceResourceGroups": [
+        {
+            "AzureResourceGroupName": "aks-global-devops",
+            "Location": "westus2",
+            "InstanceOf": "ScriptsResourceGroupDefinition",
+            "AzureSubscriptionId": "d73e1ae3-e26f-408f-98ad-c17d3479aa0c",
+            "ServiceResources": [
+                {
+                    "Name": "AKSACRPush",
+                    "InstanceOf": "ACRPush",
+                    "scopeTags": [
+                        {
+                            "name": "image-build"
+                        }
+                    ],
+                    "rolloutParametersPath": "parameters\\ACRPush.Parameter.json"
+                }
+            ]
+        }
+    ]
+}
