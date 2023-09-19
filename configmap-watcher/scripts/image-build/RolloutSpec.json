@@ -1,0 +1,30 @@
+{
+    "$schema": "http://schema.express.azure.com/schemas/2015-01-01-alpha/RolloutSpec.json",
+    "ContentVersion": "1.0.0.0",
+    "RolloutMetadata": {
+        "ServiceModelPath": "ServiceModel.json",
+        "ScopeBindingsPath": "ScopeBindings.json",
+        "Name": "AKS Image Push",
+        "RolloutType": "Major",
+        "BuildSource": {
+            "Parameters": {
+                "VersionFile": "BuildVer.txt"
+            }
+        },
+        "Notification": {
+            "Email": {
+                "To": "aks-data-plane@microsoft.com"
+            }
+        }
+    },
+    "OrchestratedSteps": [
+        {
+            "Name": "AKS-ACR-Deploy",
+            "TargetType": "ServiceResource",
+            "TargetName": "AKSACRPush",
+            "Actions": [
+                "Shell/aksacrpush"
+            ]
+        }
+    ]
+}
