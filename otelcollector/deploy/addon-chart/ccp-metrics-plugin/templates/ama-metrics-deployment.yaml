@@ -4,7 +4,7 @@ metadata:
   name: ama-metrics-ccp
   namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
   labels:
-    component: ama-metrics-ccp
+    component: ama-metrics
 spec:
   replicas: 1
   revisionHistoryLimit: 2
@@ -94,7 +94,7 @@ spec:
             - name: MODE
               value: "advanced" # only supported mode is 'advanced', any other value will be the default/non-advance mode
             - name: WINMODE
-              value: ""
+              value: "" # WINDOWS: only supported mode is 'advanced', any other value will be the default/non-advance mode
             - name: MINIMAL_INGESTION_PROFILE
               value: "true" # false scrapes all metrics
           securityContext:
@@ -102,6 +102,7 @@ spec:
           volumeMounts:
             - mountPath: /etc/config/settings
               name: settings-vol-config
+              readOnly: true
             - mountPath: /etc/config/settings/prometheus
               name: prometheus-config-vol
               readOnly: true
@@ -130,90 +131,24 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
-        - name: ama-metrics-config-sync
-          image: mcr.microsoft.com/oss/kubernetes/kubectl:v1.27.2-linux-amd64-1
-          command: [ "/bin/bash", "-c" ]
-          args:
-            - |
-              echo "Watching ama-metrics-settings configmap..."
-              settings_file="/etc/config/settings/ama-metrics-settings.json"
-              while true; do
-                kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) --watch | while read line; do
-                  if [[ $line == "NAME"* ]]; then
-                    # skip header
-                    continue
-                  fi
-
-                  echo "New configuration detected: $line"
-                  rm /etc/config/settings/inotifysettingscreated
-                  echo "Reading ama-metrics-settings configmap"
-                  if result=$(kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig="$CCP_KUBECONFIG" -o json); then
-                    echo "$result" > $settings_file
-                    echo "Configmap written to file"
-                    for key in $(jq -r '.data | keys | .[]' $settings_file); do
-                      value=$(jq -r ".data.\"${key}\"" $settings_file)
-                      echo -e "$value" > /etc/config/settings/$key
-                      echo "Created file '/etc/config/settings/$key'"
-                    done
-                    touch /etc/config/settings/inotifysettingscreated
-                  else
-                    echo "Configmap deleted"
-                    for key in $(jq -r '.data | keys | .[]' $settings_file); do
-                      rm /etc/config/settings/$key
-                      echo "Removed file '/etc/config/settings/$key'"
-                    done
-                    rm $settings_file
-                    touch /etc/config/settings/inotifysettingscreated
-                    break
-                  fi
-                done
-
-                touch /etc/config/settings/inotifysettingscreated
-                echo "Waiting for configmap to be created..."
-                sleep 60
-              done
-          env:
-            - name: CCP_KUBECONFIG
-              value: /etc/kubernetes/kubeconfig/kubeconfig.yaml
-          volumeMounts:
-            - name: kubeconfig
-              readOnly: true
-              mountPath: /etc/kubernetes/kubeconfig
-            - name: settings-vol-config
-              mountPath: /etc/config/settings
-        - name: addon-token-adapter
-          command:
-            - /addon-token-adapter
-          args:
-            - --secret-namespace=kube-system
-            - --secret-name=aad-msi-auth-token
-            - --token-server-listening-port=7777
-            - --health-server-listening-port=9999
-          image: "mcr.microsoft.com/aks/msi/addon-token-adapter:master.230804.1"
+        - name: msi-adapter
+          image: "mcr.microsoft.com/aks/ccp/msi-adapter:master.230208.1"
           imagePullPolicy: IfNotPresent
           env:
-            - name: AZMON_COLLECT_ENV
-              value: "false"
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 9999
-            initialDelaySeconds: 10
-            periodSeconds: 60
-          resources:
-            limits:
-              cpu: 500m
-              memory: 500Mi
-            requests:
-              cpu: 20m
-              memory: 30Mi
+          - name: SUBSCRIPTION_ID
+            value: "{{ .Values.global.commonGlobals.Customer.SubscriptionId }}"
+          - name: RESOURCE_GROUP_NAME
+            value: "{{ .Values.global.commonGlobals.Customer.ResourceGroupName }}"
+          - name: MANAGED_CLUSTER_NAME
+            value: "{{ .Values.global.commonGlobals.Customer.ManagedClusterName }}"
+          - name: CONTROL_PLANE_ID
+            value: "{{ .Values.global.commonGlobals.Customer.Namespace }}"
+          - name: CLIENT_NAME
+            value: ama-metrics
           securityContext:
-            capabilities:
-              drop:
-                - ALL
-              add:
-                - NET_ADMIN
-                - NET_RAW
+           capabilities:
+             add:
+               - NET_ADMIN
       affinity:
         nodeAffinity:
           # affinity to schedule on to ephemeral os node if its available
@@ -247,14 +182,13 @@ spec:
                     operator: Exists
       volumes:
         - name: settings-vol-config
-          emptyDir: { }
+          configMap:
+            name: ama-metrics-settings-configmap
+            optional: true
         - name: prometheus-config-vol
           configMap:
             name: ama-metrics-prometheus-config
             optional: true
-        - name: kubeconfig
-          secret:
-            secretName: kubeconfig-file
         - name: host-log-containers
           hostPath:
             path: /var/log/containers
