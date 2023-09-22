@@ -1,8 +1,66 @@
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-serviceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ama-metrics-ccp-serviceaccount
+  namespace: 650a838fce846f0001c5a5a3
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-clusterRole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ama-metrics-ccp-reader
+rules:
+  - apiGroups: [""]
+    resources:
+      [
+        "pods",
+        "nodes",
+        "nodes/stats",
+        "nodes/metrics",
+        "nodes/proxy",
+        "namespaces",
+        "services",
+        "endpoints",
+        "ingress"
+      ]
+    verbs: ["list", "get", "watch"]
+  - apiGroups:
+    - networking.k8s.io
+    resources:
+    - ingresses
+    verbs: ["list", "get", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["aad-msi-auth-token"]
+    verbs: ["get", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+  - apiGroups: ["clusterconfig.azure.com"]
+    resources: ["azureclusteridentityrequests", "azureclusteridentityrequests/status"]
+    verbs: ["get", "update", "list", "create"]
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-clusterRoleBinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ama-metrics-ccp-clusterrolebinding
+subjects:
+  - kind: ServiceAccount
+    name: ama-metrics-ccp-serviceaccount
+    namespace: 650a838fce846f0001c5a5a3
+roleRef:
+  kind: ClusterRole
+  name: ama-metrics-ccp-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ama-metrics-ccp
-  namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
+  namespace: 650a838fce846f0001c5a5a3
   labels:
     component: ama-metrics-ccp
 spec:
@@ -27,22 +85,62 @@ spec:
     spec:
       priorityClassName: system-node-critical
       serviceAccountName: ama-metrics-ccp-serviceaccount
+      initContainers:
+        - name: ama-metrics-config-sync
+          image: mcr.microsoft.com/oss/kubernetes/kubectl:v1.27.2-linux-amd64-1
+          command: [ "/bin/bash", "-c" ]
+          args:
+            - |
+              echo "Watching ama-metrics-settings configmap..."
+              settings_file="/etc/config/settings/ama-metrics-settings.json"
+              rm /etc/config/settings/inotifysettingscreated
+              echo "Reading ama-metrics-settings configmap"
+              if result=$(kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig="$CCP_KUBECONFIG" -o json); then
+                echo "$result" > $settings_file
+                echo "Configmap written to file"
+                for key in $(jq -r '.data | keys | .[]' $settings_file); do
+                  value=$(jq -r ".data.\"${key}\"" $settings_file)
+                  echo -e "$value" > /etc/config/settings/$key
+                  echo "Created file '/etc/config/settings/$key'"
+                done
+                touch /etc/config/settings/inotifysettingscreated
+              else
+                echo "Configmap deleted"
+                for key in $(jq -r '.data | keys | .[]' $settings_file); do
+                  rm /etc/config/settings/$key
+                  echo "Removed file '/etc/config/settings/$key'"
+                done
+                rm $settings_file
+                touch /etc/config/settings/inotifysettingscreated
+                break
+              fi
+  
+              echo "Finished"
+          env:
+            - name: CCP_KUBECONFIG
+              value: /etc/kubernetes/kubeconfig/kubeconfig.yaml
+          volumeMounts:
+            - name: kubeconfig
+              readOnly: true
+              mountPath: /etc/kubernetes/kubeconfig
+            - name: settings-vol-config
+              mountPath: /etc/config/settings
       containers:
         - name: prometheus-collector
-          image: "{{ .Values.AzureMonitorMetrics.ImageRepository }}:{{ .Values.AzureMonitorMetrics.ImageTag }}"
+          image: "ninaaksoperatore2e.azurecr.io/prometheus-collector:6.7.0-main-26-07-2023-67"
           imagePullPolicy: IfNotPresent
           resources:
             limits:
               cpu: 1
-              memory: 1Gi
+              memory: 2Gi
             requests:
               cpu: 150m
               memory: 500Mi
           env:
             - name: CLUSTER
-              value: "{{ .Values.global.commonGlobals.Customer.AzureResourceID }}"
+              value: "/subscriptions/18153b17-4e27-4b58-863e-f8105b8892a2/resourceGroups/standalone-2309057cjg7s/providers/Microsoft.ContainerService/managedClusters/standalone-2309057cjg7s-cx-1"
             - name: AKSREGION
-              value: "{{ .Values.global.commonGlobals.Region }}"
+              value: "eastus"
             - name: MAC
               value: "true"
             - name: CCP_METRICS_ENABLED
@@ -50,7 +148,7 @@ spec:
             - name: AZMON_COLLECT_ENV
               value: "false"
             - name: customEnvironment
-              value: "{{ lower .Values.global.commonGlobals.CloudEnvironment }}"
+              value: "azurepubliccloud"
             - name: OMS_TLD
               value: "opinsights.azure.com"
             - name: CONTROLLER_TYPE
@@ -90,7 +188,7 @@ spec:
             - name: NODE_EXPORTER_VERSION
               value: "v1.5.0" # Replace this with the version shipped by default
             - name: AGENT_VERSION
-              value: {{ .Values.AzureMonitorMetrics.ImageTag }}
+              value: 6.7.0-main-26-07-2023-67
             - name: MODE
               value: "advanced" # only supported mode is 'advanced', any other value will be the default/non-advance mode
             - name: WINMODE
@@ -130,51 +228,14 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
-        - name: ama-metrics-config-sync
-          image: mcr.microsoft.com/oss/kubernetes/kubectl:v1.27.2-linux-amd64-1
-          command: [ "/bin/bash", "-c" ]
+        - name: configmap-watcher
+          image: "ninaaksoperatore2e.azurecr.io/configmap-watcher:latest"
+          command:
+            - /configmap-watcher
           args:
-            - |
-              echo "Watching ama-metrics-settings configmap..."
-              settings_file="/etc/config/settings/ama-metrics-settings.json"
-              while true; do
-                kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig=$(CCP_KUBECONFIG) --watch | while read line; do
-                  if [[ $line == "NAME"* ]]; then
-                    # skip header
-                    continue
-                  fi
-
-                  echo "New configuration detected: $line"
-                  rm /etc/config/settings/inotifysettingscreated
-                  echo "Reading ama-metrics-settings configmap"
-                  if result=$(kubectl get configmap ama-metrics-settings-configmap --namespace=kube-system --kubeconfig="$CCP_KUBECONFIG" -o json); then
-                    echo "$result" > $settings_file
-                    echo "Configmap written to file"
-                    for key in $(jq -r '.data | keys | .[]' $settings_file); do
-                      value=$(jq -r ".data.\"${key}\"" $settings_file)
-                      echo -e "$value" > /etc/config/settings/$key
-                      echo "Created file '/etc/config/settings/$key'"
-                    done
-                    touch /etc/config/settings/inotifysettingscreated
-                  else
-                    echo "Configmap deleted"
-                    for key in $(jq -r '.data | keys | .[]' $settings_file); do
-                      rm /etc/config/settings/$key
-                      echo "Removed file '/etc/config/settings/$key'"
-                    done
-                    rm $settings_file
-                    touch /etc/config/settings/inotifysettingscreated
-                    break
-                  fi
-                done
-
-                touch /etc/config/settings/inotifysettingscreated
-                echo "Waiting for configmap to be created..."
-                sleep 60
-              done
-          env:
-            - name: CCP_KUBECONFIG
-              value: /etc/kubernetes/kubeconfig/kubeconfig.yaml
+            - --configmap-namespace=kube-system
+            - --configmap-name=ama-metrics-settings-configmap
+            - --kubeconfig-file=/etc/kubernetes/kubeconfig/kubeconfig.yaml
           volumeMounts:
             - name: kubeconfig
               readOnly: true

@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/microsoft/ApplicationInsights-Go/appinsights"
@@ -27,17 +27,15 @@ import (
 )
 
 type meMetricsProcessedCount struct {
-	DimBytesProcessedCount	float64
-	DimBytesSentToPubCount float64
-	DimMetricsSentToPubCount	float64
-	Value	float64
+	DimBytesProcessedCount   float64
+	DimBytesSentToPubCount   float64
+	DimMetricsSentToPubCount float64
+	Value                    float64
 }
 
 type meMetricsReceivedCount struct {
-	Value	float64
+	Value float64
 }
-
-
 
 var (
 	// CommonProperties indicates the dimensions that are sent with every event/metric
@@ -79,7 +77,7 @@ var (
 const (
 	coresAttachedTelemetryIntervalSeconds = 600
 	ksmAttachedTelemetryIntervalSeconds   = 600
-	meMetricsTelemetryIntervalSeconds	  = 300
+	meMetricsTelemetryIntervalSeconds     = 300
 	coresAttachedTelemetryName            = "ClusterCoreCapacity"
 	linuxCpuCapacityTelemetryName         = "LiCapacity"
 	linuxNodeCountTelemetryName           = "LiNodeCnt"
@@ -109,6 +107,7 @@ const (
 	envNamespace                          = "POD_NAMESPACE"
 	envHelmReleaseName                    = "HELM_RELEASE_NAME"
 	envPrometheusCollectorHealth          = "AZMON_PROMETHEUS_COLLECTOR_HEALTH_SCRAPING_ENABLED"
+	envPrometheusCollectorHealthCcp       = "AZMON_PROMETHEUS_COLLECTOR_HEALTH_CCP_SCRAPING_ENABLED"
 	fluentbitOtelCollectorLogsTag         = "prometheus.log.otelcollector"
 	fluentbitProcessedCountTag            = "prometheus.log.processedcount"
 	fluentbitDiagnosticHeartbeatTag       = "prometheus.log.diagnosticheartbeat"
@@ -280,12 +279,12 @@ func SendCoreCountToAppInsightsMetrics() {
 
 	coreCountTelemetryTicker := time.NewTicker(time.Second * time.Duration(coresAttachedTelemetryIntervalSeconds))
 	for ; true; <-coreCountTelemetryTicker.C {
-		telemetryProperties := map[string]int64 {
+		telemetryProperties := map[string]int64{
 			windowsCpuCapacityTelemetryName: 0,
-			windowsNodeCountTelemetryName: 0,
-			virtualNodeCountTelemetryName: 0,
-			arm64CpuCapacityTelemetryName: 0,
-			arm64NodeCountTelemetryName: 0,
+			windowsNodeCountTelemetryName:   0,
+			virtualNodeCountTelemetryName:   0,
+			arm64CpuCapacityTelemetryName:   0,
+			arm64NodeCountTelemetryName:     0,
 		}
 
 		nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
@@ -302,10 +301,10 @@ func SendCoreCountToAppInsightsMetrics() {
 			if node.Labels == nil {
 				SendException(fmt.Sprintf("Labels are missing for the node: %s when getting core capacity", node.Name))
 			} else if node.Labels["type"] == "virtual-kubelet" {
-					// Do not add core capacity total for virtual nodes as this could be extremely large
-					// Just count how many virtual nodes exist
-					telemetryProperties[virtualNodeCountTelemetryName] += 1
-					continue
+				// Do not add core capacity total for virtual nodes as this could be extremely large
+				// Just count how many virtual nodes exist
+				telemetryProperties[virtualNodeCountTelemetryName] += 1
+				continue
 			} else {
 				osLabel = node.Labels["kubernetes.io/os"]
 				archLabel = node.Labels["kubernetes.io/arch"]
@@ -493,21 +492,21 @@ func UpdateMEMetricsProcessedCount(records []map[interface{}]interface{}) int {
 			if err == nil {
 
 				metricsAccountName := groupMatches[3]
-				
+
 				bytesProcessedCount, e := strconv.ParseFloat(groupMatches[5], 64)
-				if e != nil{
+				if e != nil {
 					bytesProcessedCount = 0.0
 				}
-			
-				metricsSentToPubCount,e := strconv.ParseFloat(groupMatches[6], 64)
+
+				metricsSentToPubCount, e := strconv.ParseFloat(groupMatches[6], 64)
 				if e != nil {
 					metricsSentToPubCount = 0.0
 				}
-				bytesSentToPubCount,e := strconv.ParseFloat(groupMatches[7], 64)
+				bytesSentToPubCount, e := strconv.ParseFloat(groupMatches[7], 64)
 				if e != nil {
 					bytesSentToPubCount = 0.0
 				}
-				
+
 				//update map
 				meMetricsProcessedCountMapMutex.Lock()
 
@@ -520,18 +519,19 @@ func UpdateMEMetricsProcessedCount(records []map[interface{}]interface{}) int {
 					ref.Value += metricsProcessedCount
 
 				} else {
-					m := &meMetricsProcessedCount { 
-													DimBytesProcessedCount: bytesProcessedCount,
-													DimBytesSentToPubCount: bytesSentToPubCount,
-													DimMetricsSentToPubCount: metricsSentToPubCount,
-													Value: metricsProcessedCount, 
-												  }
+					m := &meMetricsProcessedCount{
+						DimBytesProcessedCount:   bytesProcessedCount,
+						DimBytesSentToPubCount:   bytesSentToPubCount,
+						DimMetricsSentToPubCount: metricsSentToPubCount,
+						Value:                    metricsProcessedCount,
+					}
 					meMetricsProcessedCountMap[metricsAccountName] = m
 				}
 				meMetricsProcessedCountMapMutex.Unlock()
 			}
 
-			if strings.ToLower(os.Getenv(envPrometheusCollectorHealth)) == "true" {
+			if strings.ToLower(os.Getenv(envPrometheusCollectorHealth)) == "true" ||
+				strings.ToLower(os.Getenv(envPrometheusCollectorHealthCcp)) == "true" {
 				// Add to the total that PublishTimeseriesVolume() uses
 				metricsSentToPubCount, err := strconv.ParseFloat(groupMatches[6], 64)
 				if err == nil {
@@ -562,12 +562,12 @@ func PushMEProcessedAndReceivedCountToAppInsightsMetrics() {
 	for ; true; <-ticker.C {
 
 		meMetricsProcessedCountMapMutex.Lock()
-		for k,v := range meMetricsProcessedCountMap {
+		for k, v := range meMetricsProcessedCountMap {
 			metric := appinsights.NewMetricTelemetry("meMetricsProcessedCount", v.Value)
 			metric.Properties["metricsAccountName"] = k
-			metric.Properties["bytesProcessedCount"] = fmt.Sprintf("%.2f",v.DimBytesProcessedCount)
-			metric.Properties["metricsSentToPubCount"] = fmt.Sprintf("%.2f",v.DimMetricsSentToPubCount)
-			metric.Properties["bytesSentToPubCount"] = fmt.Sprintf("%.2f",v.DimBytesSentToPubCount)
+			metric.Properties["bytesProcessedCount"] = fmt.Sprintf("%.2f", v.DimBytesProcessedCount)
+			metric.Properties["metricsSentToPubCount"] = fmt.Sprintf("%.2f", v.DimMetricsSentToPubCount)
+			metric.Properties["bytesSentToPubCount"] = fmt.Sprintf("%.2f", v.DimBytesSentToPubCount)
 
 			if InvalidCustomPrometheusConfig != "" {
 				metric.Properties["InvalidCustomPrometheusConfig"] = InvalidCustomPrometheusConfig
@@ -602,7 +602,7 @@ func PushMEProcessedAndReceivedCountToAppInsightsMetrics() {
 			if WinKubeProxyKeepListRegex != "" {
 				metric.Properties["WinKubeProxyKeepListRegex"] = WinKubeProxyKeepListRegex
 			}
-			
+
 			TelemetryClient.Track(metric)
 
 		}
@@ -667,15 +667,16 @@ func UpdateMEReceivedMetricsCount(records []map[interface{}]interface{}) int {
 					ref.Value += metricsReceivedCount
 
 				} else {
-					m := &meMetricsReceivedCount { 
-													Value: metricsReceivedCount, 
-												  }
+					m := &meMetricsReceivedCount{
+						Value: metricsReceivedCount,
+					}
 					meMetricsReceivedCountMap["na"] = m
 				}
 				meMetricsReceivedCountMapMutex.Unlock()
-				
+
 				// Add to the total that PublishTimeseriesVolume() uses
-				if strings.ToLower(os.Getenv(envPrometheusCollectorHealth)) == "true" {
+				if strings.ToLower(os.Getenv(envPrometheusCollectorHealth)) == "true" ||
+					strings.ToLower(os.Getenv(envPrometheusCollectorHealthCcp)) == "true" {
 					TimeseriesVolumeMutex.Lock()
 					TimeseriesReceivedTotal += metricsReceivedCount
 					TimeseriesVolumeMutex.Unlock()
@@ -708,7 +709,8 @@ func PushInfiniteMetricLogToAppInsightsEvents(records []map[interface{}]interfac
 }
 
 func RecordExportingFailed(records []map[interface{}]interface{}) int {
-	if strings.ToLower(os.Getenv(envPrometheusCollectorHealth)) == "true" {
+	if strings.ToLower(os.Getenv(envPrometheusCollectorHealth)) == "true" ||
+		strings.ToLower(os.Getenv(envPrometheusCollectorHealthCcp)) == "true" {
 		ExportingFailedMutex.Lock()
 		OtelCollectorExportingFailedCount += 1
 		ExportingFailedMutex.Unlock()

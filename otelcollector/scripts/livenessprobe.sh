@@ -81,7 +81,8 @@ then
 else
     if [ -s "/opt/inotifyoutput.txt" ]  #file exists and size > 0
     then
-        echo "inotifyoutput.txt has been updated - config changed" > /dev/termination-log
+        inotifycontent=$(cat "/opt/inotifyoutput.txt")
+        echo "inotifyoutput.txt has been updated - config changed. $inotifycontent" > /dev/termination-log
         exit 1
     fi
 fi
