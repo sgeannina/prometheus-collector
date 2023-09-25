@@ -102,7 +102,6 @@ spec:
           volumeMounts:
             - mountPath: /etc/config/settings
               name: settings-vol-config
-              readOnly: true
             - mountPath: /etc/config/settings/prometheus
               name: prometheus-config-vol
               readOnly: true
