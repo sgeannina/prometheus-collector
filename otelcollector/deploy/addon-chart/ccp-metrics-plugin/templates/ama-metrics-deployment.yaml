@@ -4,7 +4,7 @@ metadata:
   name: ama-metrics-ccp
   namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
   labels:
-    component: ama-metrics
+    component: ama-metrics-ccp
 spec:
   replicas: 1
   revisionHistoryLimit: 2
@@ -200,6 +200,9 @@ spec:
           configMap:
             name: ama-metrics-settings-configmap
             optional: true
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig-file
         - name: prometheus-config-vol
           configMap:
             name: ama-metrics-prometheus-config
