@@ -28,6 +28,7 @@ var (
 	// ExitSignal 143=128+SIGTERM, https://tldp.org/LDP/abs/html/exitcodes.html
 	ExitSignal         = 143
 	kubeconfigFile     string
+	settingsVolume     string
 	configmapNamespace string
 	configmapName      string
 	mutex              *sync.Mutex
@@ -37,6 +38,7 @@ func init() {
 	rootCmd.Flags().StringVar(&kubeconfigFile, "kubeconfig-file", "", "Path to the kubeconfig")
 	rootCmd.Flags().StringVar(&configmapNamespace, "configmap-namespace", "kube-system", "The configmap namespace")
 	rootCmd.Flags().StringVar(&configmapName, "configmap-name", "", "The configmap name")
+	rootCmd.Flags().StringVar(&settingsVolume, "settings-volume", "", "Directory where the settings files are stored")
 }
 
 func run() {
@@ -44,18 +46,16 @@ func run() {
 	ctx := log.WithLogger(context.Background(), logger)
 	mutex = &sync.Mutex{}
 
-	if kubeconfigFile == "" {
-		logger.Fatal(ctx, "--kubeconfig-file is required")
-	}
+	validateParameters(ctx, logger)
 
 	// TODO: Logging is probably all wrong
-	userAgent := fmt.Sprintf("remediator/%s %s/%s", "Version", "Commit", "Date")
+	userAgent := fmt.Sprintf("configmap-watcher/%s %s/%s", "Version", "Commit", "Date")
 	overlayClient, err := createOverlayKubeClient(userAgent)
 	if err != nil {
 		logger.Fatalf(ctx, "failed to create overlay clientset: %s", err)
 	}
 
-	WatchForChanges(overlayClient, configmapNamespace, configmapName, mutex)
+	WatchForChanges(overlayClient, configmapNamespace, configmapName, settingsVolume, mutex)
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -82,4 +82,22 @@ func createOverlayKubeClient(userAgent string) (*kubernetes.Clientset, error) {
 	}
 	cfg.UserAgent = userAgent
 	return kubernetes.NewForConfig(cfg)
+}
+
+func validateParameters(ctx context.Context, logger *log.Logger) {
+	if kubeconfigFile == "" {
+		logger.Fatal(ctx, "--kubeconfig-file is required")
+	}
+
+	if settingsVolume == "" {
+		logger.Fatal(ctx, "--settings-volume is required")
+	}
+
+	if configmapName == "" {
+		logger.Fatal(ctx, "--configmap-name is required")
+	}
+
+	if configmapNamespace == "" {
+		logger.Fatal(ctx, "--configmap-namespace is required")
+	}
 }
