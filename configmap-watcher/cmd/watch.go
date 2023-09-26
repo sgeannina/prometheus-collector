@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path"
-	"strconv"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -12,14 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-)
-
-var (
-	settings = []string{
-		"default-scrape-settings-enabled",
-		"default-targets-metrics-keep-list",
-		"default-targets-scrape-interval-settings",
-	}
 )
 
 const fileMode = 0640
@@ -34,15 +25,14 @@ func WatchForChanges(clientSet *kubernetes.Clientset, namespace, configmapName, 
 		}
 	}
 
-	println("Watch for changes in configmap...")
 	for {
+		println("Watch for changes in configmap...")
 		watcher, err := clientSet.CoreV1().ConfigMaps(namespace).Watch(context.TODO(),
 			metav1.SingleObject(metav1.ObjectMeta{Name: configmapName, Namespace: namespace}))
 		if err != nil {
 			panic("Unable to create watcher")
 		}
 		handleConfimapUpdate(watcher.ResultChan(), mutex)
-		println("Retrying watch...")
 	}
 }
 
@@ -64,7 +54,7 @@ func handleConfimapUpdate(eventChannel <-chan watch.Event, mutex *sync.Mutex) {
 			case watch.Deleted:
 				mutex.Lock()
 				println("Deleted configmap")
-				deleteSettingsFiles(settingsVolume)
+				deleteSettingsFiles(settingsVolume, event)
 				mutex.Unlock()
 			default:
 				// Do nothing
@@ -79,36 +69,37 @@ func handleConfimapUpdate(eventChannel <-chan watch.Event, mutex *sync.Mutex) {
 }
 
 func updateSettingsFiles(volumePath string, event watch.Event) {
-	err := os.Remove(path.Join(volumePath, "inotifysettingscreated"))
-	if err != nil {
-		panic("Unable to delete inotifysettingscreated file. Error: " + err.Error())
-	}
+	removeFileIfExists(path.Join(volumePath, "inotifysettingscreated"))
 
 	if updatedConfigMap, ok := event.Object.(*corev1.ConfigMap); ok {
-		println("Added configmap: " + updatedConfigMap.ObjectMeta.Name + " ok: " + strconv.FormatBool(ok))
-		for _, settingKey := range settings {
+		for settingKey, settingValue := range updatedConfigMap.Data {
+			println("Creating/updating settings file: " + settingKey)
 			filePath := path.Join(volumePath, settingKey)
-			err = os.WriteFile(filePath, []byte(updatedConfigMap.Data[settingKey]), fileMode)
+			err := os.WriteFile(filePath, []byte(settingValue), fileMode)
 			if err != nil {
-				panic("Unable to create/update file: " + filePath + " Error: " + err.Error())
+				panic("Unable to create/update file: " + filePath + ". Error: " + err.Error())
 			}
 		}
 	}
 
-	_, err = os.Create(path.Join(volumePath, "inotifysettingscreated"))
+	_, err := os.Create(path.Join(volumePath, "inotifysettingscreated"))
 	if err != nil {
 		panic("Unable to create inotifysettingscreated file. Error: " + err.Error())
 	}
 }
 
-func deleteSettingsFiles(volumePath string) {
-	for _, settingKey := range settings {
-		filePath := path.Join(volumePath, settingKey)
-		err := os.Remove(filePath)
-		if err != nil {
-			panic("Unable to delete file: " + filePath + " Error: " + err.Error())
+func deleteSettingsFiles(volumePath string, event watch.Event) {
+	removeFileIfExists(path.Join(volumePath, "inotifysettingscreated"))
+
+	if updatedConfigMap, ok := event.Object.(*corev1.ConfigMap); ok {
+		for settingKey := range updatedConfigMap.Data {
+			println("Deleting settings file: " + settingKey)
+			filePath := path.Join(volumePath, settingKey)
+			err := os.Remove(filePath)
+			if err != nil {
+				panic("Unable to delete file: " + filePath + " Error: " + err.Error())
+			}
 		}
-		println("Removed file: " + filePath)
 	}
 
 	_, err := os.Create(path.Join(volumePath, "inotifysettingscreated"))
@@ -123,8 +114,18 @@ func configMapExists(clientset *kubernetes.Clientset, namespace, configMapName s
 		return false
 	}
 	if err != nil {
+		// TODO: Fix error handling
 		println("Error getting configmap: " + err.Error())
 		return false
 	}
 	return true
+}
+
+func removeFileIfExists(filePath string) {
+	if err := os.Remove(filePath); err != nil {
+		// Check if the error is due to the file not existing, otherwise panic
+		if !os.IsNotExist(err) {
+			panic("Error removing file: " + filePath + ". Error: " + err.Error())
+		}
+	}
 }

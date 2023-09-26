@@ -196,9 +196,7 @@ spec:
                     operator: Exists
       volumes:
         - name: settings-vol-config
-          configMap:
-            name: ama-metrics-settings-configmap
-            optional: true
+          emptyDir: { }
         - name: kubeconfig
           secret:
             secretName: kubeconfig-file
