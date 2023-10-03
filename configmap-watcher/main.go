@@ -1,6 +1,6 @@
 package main
 
-import "goms.io/aks/configmap-watcher/cmd"
+import "go.goms.io/aks/configmap-watcher/cmd"
 
 func main() {
 	cmd.Execute()

@@ -2,8 +2,10 @@
 package cmd
 
 import (
-	"context"
+	"errors"
 	"fmt"
+	lgr "go.goms.io/aks/configmap-watcher/logger"
+	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"sync"
@@ -12,8 +14,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"go.goms.io/aks/rp/toolkit/log"
 )
 
 var rootCmd = &cobra.Command{
@@ -42,26 +42,28 @@ func init() {
 }
 
 func run() {
-	logger := newConfigmapWatcherLogger()
-	ctx := log.WithLogger(context.Background(), logger)
+	logger := lgr.SetupLogger(os.Stdout, "ConfigMapWatcher")
+	defer logger.Sync() //nolint:errcheck
 	mutex = &sync.Mutex{}
 
-	validateParameters(ctx, logger)
+	if err := validateParameters(); err != nil {
+		logger.Panic("Invalid parameter.", zap.Error(err))
+	}
 
-	// TODO: Logging is probably all wrong
+	// TODO: Find a way to get the version, commit and date from the build
 	userAgent := fmt.Sprintf("configmap-watcher/%s %s/%s", "Version", "Commit", "Date")
 	overlayClient, err := createOverlayKubeClient(userAgent)
 	if err != nil {
-		logger.Fatalf(ctx, "failed to create overlay clientset: %s", err)
+		logger.Panic("failed to create overlay clientset", zap.Error(err))
 	}
 
-	WatchForChanges(overlayClient, configmapNamespace, configmapName, settingsVolume, mutex)
+	WatchForChanges(overlayClient, logger, configmapNamespace, configmapName, settingsVolume)
 
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		<-c
-		logger.Info(ctx, "os interrupt SIGTERM, exiting...")
+		logger.Info("os interrupt SIGTERM, exiting...")
 		os.Exit(ExitSignal)
 	}()
 }
@@ -84,20 +86,22 @@ func createOverlayKubeClient(userAgent string) (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(cfg)
 }
 
-func validateParameters(ctx context.Context, logger *log.Logger) {
+func validateParameters() error {
 	if kubeconfigFile == "" {
-		logger.Fatal(ctx, "--kubeconfig-file is required")
+		return errors.New("--kubeconfig-file is required")
 	}
 
 	if settingsVolume == "" {
-		logger.Fatal(ctx, "--settings-volume is required")
+		return errors.New("--settings-volume is required")
 	}
 
 	if configmapName == "" {
-		logger.Fatal(ctx, "--configmap-name is required")
+		return errors.New("--configmap-name is required")
 	}
 
 	if configmapNamespace == "" {
-		logger.Fatal(ctx, "--configmap-namespace is required")
+		return errors.New("--configmap-namespace is required")
 	}
+
+	return nil
 }
