@@ -2,6 +2,8 @@ module goms.io/aks/configmap-watcher
 
 go 1.20
 
+replace go.goms.io/aks/configmap-watcher/logger => ../../logger
+
 require (
 	github.com/axw/gocov v1.0.0
 	github.com/golangci/golangci-lint v1.54.2

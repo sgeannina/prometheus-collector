@@ -3,10 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path"
 	"sync"
+
+	"go.uber.org/zap"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,18 +16,20 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const FileMode = 0640
-const WatcherNotificationFile = "inotifysettingscreated"
+const (
+	fileMode                = 0640
+	watcherNotificationFile = "inotifysettingscreated"
+)
 
 // WatchForChanges watches a configmap for changes and updates the settings files
 func WatchForChanges(clientSet *kubernetes.Clientset, logger *zap.Logger, namespace, configmapName, settingsVolume string) error {
 	if exists, err := configMapExists(clientSet, namespace, configmapName); !exists {
 		if err != nil {
-			panic("Unable to read configmap. Error: " + err.Error())
+			return fmt.Errorf("unable to read configmap %s. Error: %w", configmapName, err)
 		}
 
 		logger.Info("Configmap does not exist. Creating inotifysettingscreated file.")
-		_, err := os.Create(path.Join(settingsVolume, WatcherNotificationFile))
+		_, err := os.Create(path.Join(settingsVolume, watcherNotificationFile))
 		if err != nil {
 			return fmt.Errorf("unable to create inotifysettingscreated file. Error: %w", err)
 		}
@@ -34,32 +37,49 @@ func WatchForChanges(clientSet *kubernetes.Clientset, logger *zap.Logger, namesp
 
 	mutex = &sync.Mutex{}
 	for {
-		println("Watch for changes in configmap...")
+		logger.Info("Watch for changes in configmap...")
 		watcher, err := clientSet.CoreV1().ConfigMaps(namespace).Watch(context.TODO(),
 			metav1.SingleObject(metav1.ObjectMeta{Name: configmapName, Namespace: namespace}))
 		if err != nil {
-			panic("Unable to create watcher")
+			logger.Error(fmt.Sprintf("Unable to create watcher. Error: %s", err.Error()))
+			return err
 		}
 
-		handleConfimapUpdate(watcher.ResultChan(), logger, mutex)
+		err = handleConfigmapUpdate(watcher.ResultChan(), logger, mutex)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error while processing configmap update. Error: %s", err.Error()))
+			return err
+		}
 	}
 }
 
-func handleConfimapUpdate(eventChannel <-chan watch.Event, logger *zap.Logger, mutex *sync.Mutex) {
+func handleConfigmapUpdate(eventChannel <-chan watch.Event, logger *zap.Logger, mutex *sync.Mutex) error {
 	for {
 		event, open := <-eventChannel
 		if open {
 			mutex.Lock()
 			switch event.Type {
 			case watch.Added:
-				logger.Info("Added configmap")
-				updateSettingsFiles(settingsVolume, event)
+				logger.Info("Adding configmap")
+				err := updateSettingsFiles(settingsVolume, event, logger)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Unable to create settings files. Error: %s", err.Error()))
+					return err
+				}
 			case watch.Modified:
-				logger.Info("Updated configmap")
-				updateSettingsFiles(settingsVolume, event)
+				logger.Info("Updating configmap")
+				err := updateSettingsFiles(settingsVolume, event, logger)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Unable to update settings files. Error: %s", err.Error()))
+					return err
+				}
 			case watch.Deleted:
-				logger.Info("Deleted configmap")
-				deleteSettingsFiles(settingsVolume, event)
+				logger.Info("Deleting configmap")
+				err := deleteSettingsFiles(settingsVolume, event, logger)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Unable to delete settings files. Error: %s", err.Error()))
+					return err
+				}
 			default:
 				// Do nothing
 				logger.Error(fmt.Sprintf("Unsupported event type '%s'", event.Type))
@@ -68,67 +88,80 @@ func handleConfimapUpdate(eventChannel <-chan watch.Event, logger *zap.Logger, m
 		} else {
 			// If eventChannel is closed, it means the server has closed the connection
 			logger.Info("Channel closed. Server has closed the connection.")
-			return
+			return nil
 		}
 	}
 }
 
-func updateSettingsFiles(volumePath string, event watch.Event) {
-	removeFileIfExists(path.Join(volumePath, WatcherNotificationFile))
+func updateSettingsFiles(volumePath string, event watch.Event, logger *zap.Logger) error {
+	err := removeFileIfExists(path.Join(volumePath, watcherNotificationFile))
+	if err != nil {
+		return err
+	}
 
 	if updatedConfigMap, ok := event.Object.(*corev1.ConfigMap); ok {
 		for settingKey, settingValue := range updatedConfigMap.Data {
-			println("Creating/updating settings file: " + settingKey)
+			logger.Info(fmt.Sprintf("Creating/updating settings file: %s ", settingKey))
 			filePath := path.Join(volumePath, settingKey)
-			err := os.WriteFile(filePath, []byte(settingValue), FileMode)
+			err = os.WriteFile(filePath, []byte(settingValue), fileMode)
 			if err != nil {
-				panic("Unable to create/update file: " + filePath + ". Error: " + err.Error())
+				return fmt.Errorf("unable to create/update file '%s'. Error: %w", filePath, err)
 			}
 		}
 	}
 
-	_, err := os.Create(path.Join(volumePath, WatcherNotificationFile))
+	_, err = os.Create(path.Join(volumePath, watcherNotificationFile))
 	if err != nil {
-		panic("Unable to create inotifysettingscreated file. Error: " + err.Error())
+		return fmt.Errorf("unable to create inotifysettingscreated file. Error: %w", err)
 	}
+
+	return nil
 }
 
-func deleteSettingsFiles(volumePath string, event watch.Event) {
-	removeFileIfExists(path.Join(volumePath, WatcherNotificationFile))
+func deleteSettingsFiles(volumePath string, event watch.Event, logger *zap.Logger) error {
+	err := removeFileIfExists(path.Join(volumePath, watcherNotificationFile))
+	if err != nil {
+		return err
+	}
 
 	if updatedConfigMap, ok := event.Object.(*corev1.ConfigMap); ok {
 		for settingKey := range updatedConfigMap.Data {
-			println("Deleting settings file: " + settingKey)
+			logger.Info("Deleting settings file: " + settingKey)
 			filePath := path.Join(volumePath, settingKey)
-			err := os.Remove(filePath)
+			err = os.Remove(filePath)
 			if err != nil {
-				panic("Unable to delete file: " + filePath + " Error: " + err.Error())
+				return fmt.Errorf("unable to delete file '%s'. Error: %w", filePath, err)
 			}
 		}
 	}
 
-	_, err := os.Create(path.Join(volumePath, WatcherNotificationFile))
+	_, err = os.Create(path.Join(volumePath, watcherNotificationFile))
 	if err != nil {
-		panic("Unable to create inotifysettingscreated file. Error: " + err.Error())
+		return fmt.Errorf("unable to create inotifysettingscreated file. Error: %w", err)
 	}
+
+	return nil
 }
 
-func configMapExists(clientset *kubernetes.Clientset, namespace, configMapName string) (bool, error) {
-	_, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
+func configMapExists(clientSet *kubernetes.Clientset, namespace, configMapName string) (bool, error) {
+	_, err := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
+
 	return true, nil
 }
 
-func removeFileIfExists(filePath string) {
+func removeFileIfExists(filePath string) error {
 	if err := os.Remove(filePath); err != nil {
 		// Check if the error is due to the file not existing, otherwise panic
 		if !os.IsNotExist(err) {
-			panic("Error removing file: " + filePath + ". Error: " + err.Error())
+			return fmt.Errorf("error deleting file '%s'. Error: %w", filePath, err)
 		}
 	}
+
+	return nil
 }

@@ -4,12 +4,13 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	lgr "go.goms.io/aks/configmap-watcher/logger"
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	lgr "go.goms.io/aks/configmap-watcher/logger"
+	"go.uber.org/zap"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -57,7 +58,8 @@ func run() {
 		logger.Panic("failed to create overlay clientset", zap.Error(err))
 	}
 
-	WatchForChanges(overlayClient, logger, configmapNamespace, configmapName, settingsVolume)
+	err = WatchForChanges(overlayClient, logger, configmapNamespace, configmapName, settingsVolume)
+	logger.Panic("failed to watch configmap changes", zap.Error(err))
 
 	go func() {
 		c := make(chan os.Signal, 1)
