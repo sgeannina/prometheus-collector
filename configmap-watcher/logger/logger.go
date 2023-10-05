@@ -26,7 +26,7 @@ func (e *customEncoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field)
 	fields = append(
 		fields, zap.String("source", e.Source),
 		zap.String("msg", entry.Message),
-		zap.String("file", entry.Caller.File),
+		zap.String("file", entry.Caller.TrimmedPath()),
 		zap.String("level", entry.Level.String()),
 	)
 	return e.Encoder.EncodeEntry(entry, fields)
@@ -40,6 +40,7 @@ func SetupLogger(w io.Writer, source string) *zap.Logger {
 		EncodeTime:     zapcore.RFC3339NanoTimeEncoder,
 		EncodeDuration: zapcore.StringDurationEncoder,
 	}
+
 	// Create the logger with the custom encoder.
 	return zap.New(zapcore.NewCore(
 		&customEncoder{
@@ -48,5 +49,5 @@ func SetupLogger(w io.Writer, source string) *zap.Logger {
 		},
 		zapcore.AddSync(w),
 		zap.DebugLevel,
-	))
+	), zap.AddCaller())
 }

@@ -43,7 +43,7 @@ func init() {
 }
 
 func run() {
-	logger := lgr.SetupLogger(os.Stdout, "ConfigMapWatcher")
+	logger := lgr.SetupLogger(os.Stdout, "configmap-watcher")
 	defer logger.Sync() //nolint:errcheck
 	mutex = &sync.Mutex{}
 

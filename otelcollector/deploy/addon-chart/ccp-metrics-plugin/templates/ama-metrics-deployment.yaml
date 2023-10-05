@@ -139,6 +139,13 @@ spec:
             - --configmap-name=ama-metrics-settings-configmap
             - --kubeconfig-file=/etc/kubernetes/kubeconfig/kubeconfig.yaml
             - --settings-volume=/etc/config/settings
+          resources:
+            limits:
+              cpu: 20m
+              memory: 40Mi
+            requests:
+              cpu: 10m
+              memory: 20Mi
           volumeMounts:
             - name: kubeconfig
               readOnly: true
