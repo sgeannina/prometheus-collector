@@ -12,7 +12,7 @@ import (
 func TestSuccessCommand(t *testing.T) {
 	var cli cmd.KubeClient = &KubectlMock{}
 	rootCmd := cmd.NewKubeCommand(&cli)
-	rootCmd.SetArgs([]string{"test", "value"})
+	rootCmd.SetArgs([]string{"--kubeconfig-file=/config/fake/kubeconfig", "--settings-volume=/etc/config/settings", "--configmap-name=ama-metrics-settings-configmap", "--configmap-namespace=kube-system"})
 	err := rootCmd.Execute()
 	assert.Nil(t, err)
 }
