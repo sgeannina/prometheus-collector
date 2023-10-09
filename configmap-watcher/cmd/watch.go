@@ -22,38 +22,38 @@ const (
 )
 
 // WatchForChanges watches a configmap for changes and updates the settings files
-func WatchForChanges(clientSet *kubernetes.Clientset, logger *zap.Logger, namespace, configmapName, settingsVolume string) error {
-	if exists, err := configMapExists(clientSet, namespace, configmapName); !exists {
+func WatchForChanges(clientSet kubernetes.Interface, logger *zap.Logger, info *ConfigMapSync) error {
+	if exists, err := configMapExists(clientSet, info.namespace, info.configmapName); !exists {
 		if err != nil {
-			return fmt.Errorf("unable to read configmap %s. Error: %w", configmapName, err)
+			return fmt.Errorf("unable to read configmap %s. Error: %w", info.configmapName, err)
 		}
 
 		logger.Info("Configmap does not exist. Creating inotifysettingscreated file.")
-		_, err := os.Create(path.Join(settingsVolume, watcherNotificationFile))
+		_, err := os.Create(path.Join(info.settingsVolume, watcherNotificationFile))
 		if err != nil {
 			return fmt.Errorf("unable to create inotifysettingscreated file. Error: %w", err)
 		}
 	}
 
-	mutex = &sync.Mutex{}
+	mutex := &sync.Mutex{}
 	for {
 		logger.Info("Watch for changes in configmap...")
-		watcher, err := clientSet.CoreV1().ConfigMaps(namespace).Watch(context.TODO(),
-			metav1.SingleObject(metav1.ObjectMeta{Name: configmapName, Namespace: namespace}))
+		watcher, err := clientSet.CoreV1().ConfigMaps(info.namespace).Watch(context.TODO(),
+			metav1.SingleObject(metav1.ObjectMeta{Name: info.configmapName, Namespace: info.namespace}))
 		if err != nil {
-			logger.Error(fmt.Sprintf("Unable to create watcher. Error: %s", err.Error()))
+			logger.Error("Unable to create watcher. Error: %s", zap.Error(err))
 			return err
 		}
 
-		err = handleConfigmapUpdate(watcher.ResultChan(), logger, mutex)
+		err = handleConfigmapUpdate(watcher.ResultChan(), logger, mutex, info.settingsVolume)
 		if err != nil {
-			logger.Error(fmt.Sprintf("Error while processing configmap update. Error: %s", err.Error()))
+			logger.Error("Processing configmap update.", zap.Error(err))
 			return err
 		}
 	}
 }
 
-func handleConfigmapUpdate(eventChannel <-chan watch.Event, logger *zap.Logger, mutex *sync.Mutex) error {
+func handleConfigmapUpdate(eventChannel <-chan watch.Event, logger *zap.Logger, mutex *sync.Mutex, settingsVolume string) error {
 	for {
 		event, open := <-eventChannel
 		if open {
@@ -63,21 +63,21 @@ func handleConfigmapUpdate(eventChannel <-chan watch.Event, logger *zap.Logger, 
 				logger.Info("Adding configmap")
 				err := updateSettingsFiles(settingsVolume, event, logger)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Unable to create settings files. Error: %s", err.Error()))
+					logger.Error("Unable to create settings files", zap.Error(err))
 					return err
 				}
 			case watch.Modified:
 				logger.Info("Updating configmap")
 				err := updateSettingsFiles(settingsVolume, event, logger)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Unable to update settings files. Error: %s", err.Error()))
+					logger.Error("Unable to update settings files", zap.Error(err))
 					return err
 				}
 			case watch.Deleted:
 				logger.Info("Deleting configmap")
 				err := deleteSettingsFiles(settingsVolume, event, logger)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Unable to delete settings files. Error: %s", err.Error()))
+					logger.Error("Unable to delete settings files. Error: %s", zap.Error(err))
 					return err
 				}
 			default:
@@ -143,7 +143,7 @@ func deleteSettingsFiles(volumePath string, event watch.Event, logger *zap.Logge
 	return nil
 }
 
-func configMapExists(clientSet *kubernetes.Clientset, namespace, configMapName string) (bool, error) {
+func configMapExists(clientSet kubernetes.Interface, namespace, configMapName string) (bool, error) {
 	_, err := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return false, nil

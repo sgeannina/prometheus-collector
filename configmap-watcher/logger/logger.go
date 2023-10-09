@@ -24,7 +24,7 @@ func (e *customEncoder) Clone() zapcore.Encoder {
 // EncodeEntry allows us to add additional fields to every logger entry
 func (e *customEncoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) { //nolint:all
 	fields = append(
-		fields, zap.String("source", e.Source),
+		fields,
 		zap.String("msg", entry.Message),
 		zap.String("file", entry.Caller.TrimmedPath()),
 		zap.String("level", entry.Level.String()),
@@ -37,7 +37,8 @@ func SetupLogger(w io.Writer, source string) *zap.Logger {
 	ec := zapcore.EncoderConfig{
 		NameKey:        "configmap-watcher",
 		EncodeLevel:    zapcore.LowercaseLevelEncoder,
-		EncodeTime:     zapcore.RFC3339NanoTimeEncoder,
+		TimeKey:        "ts",
+		EncodeTime:     zapcore.RFC3339TimeEncoder,
 		EncodeDuration: zapcore.StringDurationEncoder,
 	}
 

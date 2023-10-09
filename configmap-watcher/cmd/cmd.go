@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	lgr "go.goms.io/aks/configmap-watcher/logger"
@@ -17,12 +16,19 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "configmap-watcher",
-	Short: "This binary will watch a configmap and load the values in a pod volume",
-	Run: func(cmd *cobra.Command, args []string) {
-		run()
-	},
+type ConfigMapSync struct {
+	namespace      string
+	configmapName  string
+	settingsVolume string
+}
+
+type KubeClient interface {
+	CreateClientSet(kubeconfigFile, userAgent string) (kubernetes.Interface, error)
+}
+
+type Kubectl struct {
+	kubeconfig string
+	userAgent  string
 }
 
 var (
@@ -32,34 +38,31 @@ var (
 	settingsVolume     string
 	configmapNamespace string
 	configmapName      string
-	mutex              *sync.Mutex
 )
 
-func init() {
-	rootCmd.Flags().StringVar(&kubeconfigFile, "kubeconfig-file", "", "Path to the kubeconfig")
-	rootCmd.Flags().StringVar(&configmapNamespace, "configmap-namespace", "kube-system", "The configmap namespace")
-	rootCmd.Flags().StringVar(&configmapName, "configmap-name", "", "The configmap name")
-	rootCmd.Flags().StringVar(&settingsVolume, "settings-volume", "", "Directory where the settings files are stored")
-}
-
-func run() {
+func run(cli KubeClient) error {
 	logger := lgr.SetupLogger(os.Stdout, "configmap-watcher")
 	defer logger.Sync() //nolint:errcheck
-	mutex = &sync.Mutex{}
 
-	if err := validateParameters(); err != nil {
-		logger.Panic("Invalid parameter.", zap.Error(err))
+	configmapInfo, err := validateParameters()
+	if err != nil {
+		logger.Error("Invalid parameter.", zap.Error(err))
+		return fmt.Errorf("invalid parameter: %w", err)
 	}
 
 	// TODO: Find a way to get the version, commit and date from the build
 	userAgent := fmt.Sprintf("configmap-watcher/%s %s/%s", "Version", "Commit", "Date")
-	overlayClient, err := createOverlayKubeClient(userAgent)
+	overlayClient, err := cli.CreateClientSet(kubeconfigFile, userAgent)
 	if err != nil {
-		logger.Panic("failed to create overlay clientset", zap.Error(err))
+		logger.Error("failed to create overlay clientset", zap.Error(err))
+		return err
 	}
 
-	err = WatchForChanges(overlayClient, logger, configmapNamespace, configmapName, settingsVolume)
-	logger.Panic("failed to watch configmap changes", zap.Error(err))
+	err = WatchForChanges(overlayClient, logger, configmapInfo)
+	if err != nil {
+		logger.Error("failed to watch configmap changes", zap.Error(err))
+		return err
+	}
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -68,42 +71,61 @@ func run() {
 		logger.Info("os interrupt SIGTERM, exiting...")
 		os.Exit(ExitSignal)
 	}()
+
+	return nil
 }
 
-// Execute executes the root command.
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func NewKubeCommand(cli *KubeClient) *cobra.Command {
+	rootCmd := &cobra.Command{
+		Use:   "configmap-watcher",
+		Short: "This binary will watch a configmap and load the values in a pod volume",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := run(*cli); err != nil {
+				return err
+			}
+
+			return nil
+		},
 	}
+
+	rootCmd.Flags().StringVar(&kubeconfigFile, "kubeconfig-file", "", "Path to the kubeconfig")
+	rootCmd.Flags().StringVar(&configmapNamespace, "configmap-namespace", "kube-system", "The configmap namespace")
+	rootCmd.Flags().StringVar(&configmapName, "configmap-name", "", "The configmap name")
+	rootCmd.Flags().StringVar(&settingsVolume, "settings-volume", "", "Directory where the settings files are stored")
+
+	return rootCmd
 }
 
-// createOverlayKubeClient constructs a kube client instance for current overlay cluster.
-func createOverlayKubeClient(userAgent string) (*kubernetes.Clientset, error) {
+// CreateClientSet createOverlayKubeClient constructs a kube client instance for current overlay cluster.
+func (cli *Kubectl) CreateClientSet(kubeconfigFile, userAgent string) (kubernetes.Interface, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigFile)
 	if err != nil {
-		return nil, fmt.Errorf("error build overlay kubeconfig: %w", err)
+		return nil, fmt.Errorf("error creating clientset from kubeconfig: %w", err)
 	}
 	cfg.UserAgent = userAgent
 	return kubernetes.NewForConfig(cfg)
 }
 
-func validateParameters() error {
+func validateParameters() (*ConfigMapSync, error) {
 	if kubeconfigFile == "" {
-		return errors.New("--kubeconfig-file is required")
+		return nil, errors.New("--kubeconfig-file is required")
 	}
 
 	if settingsVolume == "" {
-		return errors.New("--settings-volume is required")
+		return nil, errors.New("--settings-volume is required")
 	}
 
 	if configmapName == "" {
-		return errors.New("--configmap-name is required")
+		return nil, errors.New("--configmap-name is required")
 	}
 
 	if configmapNamespace == "" {
-		return errors.New("--configmap-namespace is required")
+		return nil, errors.New("--configmap-namespace is required")
 	}
 
-	return nil
+	return &ConfigMapSync{
+		namespace:      configmapNamespace,
+		configmapName:  configmapName,
+		settingsVolume: settingsVolume,
+	}, nil
 }
