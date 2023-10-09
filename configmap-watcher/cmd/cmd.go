@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -40,7 +41,7 @@ var (
 	configmapName      string
 )
 
-func run(cli KubeClient) error {
+func run(ctx context.Context, cli KubeClient) error {
 	logger := lgr.SetupLogger(os.Stdout, "configmap-watcher")
 	defer logger.Sync() //nolint:errcheck
 
@@ -58,7 +59,7 @@ func run(cli KubeClient) error {
 		return err
 	}
 
-	err = WatchForChanges(overlayClient, logger, configmapInfo)
+	err = WatchForChanges(ctx, overlayClient, logger, configmapInfo)
 	if err != nil {
 		logger.Error("failed to watch configmap changes", zap.Error(err))
 		return err
@@ -80,7 +81,7 @@ func NewKubeCommand(cli *KubeClient) *cobra.Command {
 		Use:   "configmap-watcher",
 		Short: "This binary will watch a configmap and load the values in a pod volume",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := run(*cli); err != nil {
+			if err := run(cmd.Context(), *cli); err != nil {
 				return err
 			}
 

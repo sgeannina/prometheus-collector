@@ -22,7 +22,7 @@ const (
 )
 
 // WatchForChanges watches a configmap for changes and updates the settings files
-func WatchForChanges(clientSet kubernetes.Interface, logger *zap.Logger, info *ConfigMapSync) error {
+func WatchForChanges(ctx context.Context, clientSet kubernetes.Interface, logger *zap.Logger, info *ConfigMapSync) error {
 	if exists, err := configMapExists(clientSet, info.namespace, info.configmapName); !exists {
 		if err != nil {
 			return fmt.Errorf("unable to read configmap %s. Error: %w", info.configmapName, err)
@@ -38,7 +38,7 @@ func WatchForChanges(clientSet kubernetes.Interface, logger *zap.Logger, info *C
 	mutex := &sync.Mutex{}
 	for {
 		logger.Info("Watch for changes in configmap...")
-		watcher, err := clientSet.CoreV1().ConfigMaps(info.namespace).Watch(context.TODO(),
+		watcher, err := clientSet.CoreV1().ConfigMaps(info.namespace).Watch(ctx,
 			metav1.SingleObject(metav1.ObjectMeta{Name: info.configmapName, Namespace: info.namespace}))
 		if err != nil {
 			logger.Error("Unable to create watcher. Error: %s", zap.Error(err))
