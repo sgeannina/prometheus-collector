@@ -49,51 +49,35 @@ func TestInvalidParameter(t *testing.T) {
 	assert.EqualError(t, err, "invalid parameter: --kubeconfig-file is required")
 }
 
-func TestSuccessCommandConfigmapExists(t *testing.T) {
-	testCases := []struct {
-		name           string
-		watchConfigmap func(*testing.T)
-	}{
-		{
-			name: "watch configmap create",
-			watchConfigmap: func(t *testing.T) {
-				t.Logf("Case 1: Watch Create")
-				data := loadConfigmapFromFile(t, "../tests/settings-configmap-create.yaml")
-				fakeClient, watch := createFakeClient()
-				// the command runs indefinitely in a loop, therefore we need to cancel it after a while
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
+func TestSuccessCommandWhenConfigmapExists(t *testing.T) {
+	t.Logf("Case 1: Watch Create")
+	data := loadConfigmapFromFile(t, "../tests/settings-configmap-create.yaml")
+	fakeClient, watch := createFakeClient()
+	// the command runs indefinitely in a loop, therefore we need to cancel it after a while
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-				// Simulate watch event
-				_, tmpDir := executeConfigmapWatch(t, ctx, fakeClient)
-				watch.Add(data)
-				time.Sleep(1 * time.Second)
+	// Simulate watch event
+	_, tmpDir := executeConfigmapWatch(t, ctx, fakeClient)
+	watch.Add(data)
+	time.Sleep(1 * time.Second)
 
-				// Wait for the context to be done
-				<-ctx.Done()
+	// Wait for the context to be done
+	<-ctx.Done()
 
-				// Assert result
-				files, _ := ioutil.ReadDir(tmpDir)
-				assert.Equal(t, 9, len(files))
-				assert.True(t, fileExists(files, "inotifysettingscreated"))
-				assert.True(t, fileExists(files, "default-targets-scrape-interval-settings"))
-				assert.True(t, fileExists(files, "pod-annotation-based-scraping"))
-				assert.True(t, fileExists(files, "prometheus-collector-settings"))
-				assert.True(t, fileExists(files, "schema-version"))
-				assert.True(t, fileExists(files, "config-version"))
-				assert.True(t, fileExists(files, "debug-mode"))
-				assert.True(t, fileExists(files, "default-scrape-settings-enabled"))
-				assert.True(t, fileExists(files, "default-targets-metrics-keep-list"))
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Call helper functions and pass the local variable if needed
-			tc.watchConfigmap(t)
-		})
-	}
+	// Assert result
+	files, _ := ioutil.ReadDir(tmpDir)
+	assert.Equal(t, 9, len(files))
+	// TODO: Move these to the watch_test
+	assert.True(t, fileExists(files, "inotifysettingscreated"))
+	assert.True(t, fileExists(files, "default-targets-scrape-interval-settings"))
+	assert.True(t, fileExists(files, "pod-annotation-based-scraping"))
+	assert.True(t, fileExists(files, "prometheus-collector-settings"))
+	assert.True(t, fileExists(files, "schema-version"))
+	assert.True(t, fileExists(files, "config-version"))
+	assert.True(t, fileExists(files, "debug-mode"))
+	assert.True(t, fileExists(files, "default-scrape-settings-enabled"))
+	assert.True(t, fileExists(files, "default-targets-metrics-keep-list"))
 }
 
 func fileExists(files []fs.FileInfo, fileName string) bool {
