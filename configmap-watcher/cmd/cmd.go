@@ -17,20 +17,20 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// ConfigMapSync holds the configmap information
 type ConfigMapSync struct {
 	namespace      string
 	configmapName  string
 	settingsVolume string
 }
 
+// KubeClient interface to create client set
 type KubeClient interface {
 	CreateClientSet(kubeconfigFile, userAgent string) (kubernetes.Interface, error)
 }
 
-type Kubectl struct {
-	kubeconfig string
-	userAgent  string
-}
+// Kubectl implements KubeClient interface
+type Kubectl struct{}
 
 var (
 	// ExitSignal 143=128+SIGTERM, https://tldp.org/LDP/abs/html/exitcodes.html
@@ -76,16 +76,13 @@ func run(ctx context.Context, cli KubeClient) error {
 	return nil
 }
 
-func NewKubeCommand(cli *KubeClient) *cobra.Command {
+// NewKubeCommand creates root cobra command
+func NewKubeCommand(cli KubeClient) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "configmap-watcher",
 		Short: "This binary will watch a configmap and load the values in a pod volume",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := run(cmd.Context(), *cli); err != nil {
-				return err
-			}
-
-			return nil
+			return run(cmd.Context(), cli)
 		},
 	}
 

@@ -3,10 +3,11 @@ package cmd_test
 import (
 	"context"
 	"errors"
-	"github.com/spf13/cobra"
+	"os"
+	"testing"
+	"time"
+
 	"go.goms.io/aks/configmap-watcher/cmd"
-	"io/fs"
-	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/watch"
@@ -14,25 +15,32 @@ import (
 	testclient "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	k8stesting "k8s.io/client-go/testing"
-	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSuccessCommandNoConfigmap(t *testing.T) {
 	var cli cmd.KubeClient = &KubectlMock{}
-	cli.CreateClientSet("kubeconfig-file", "user-agent")
+	_, err := cli.CreateClientSet("kubeconfig-file", "user-agent")
+	if err != nil {
+		t.Fatalf("Error creating fake client: %v", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	tmpDir := t.TempDir()
 
-	rootCmd := cmd.NewKubeCommand(&cli)
-	rootCmd.SetArgs([]string{"--kubeconfig-file=/config/fake/kubeconfig", "--settings-volume=" + tmpDir, "--configmap-name=ama-metrics-settings-configmap", "--configmap-namespace=kube-system"})
+	rootCmd := cmd.NewKubeCommand(cli)
+	rootCmd.SetArgs([]string{
+		"--kubeconfig-file=/config/fake/kubeconfig",
+		"--settings-volume=" + tmpDir,
+		"--configmap-name=ama-metrics-settings-configmap",
+		"--configmap-namespace=kube-system",
+	})
 
 	go func() {
 		if err := rootCmd.ExecuteContext(ctx); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			t.Fatalf("Command execution failed: %v", err)
+			t.Error("Command execution failed: %w", err)
+			return
 		}
 	}()
 
@@ -41,58 +49,107 @@ func TestSuccessCommandNoConfigmap(t *testing.T) {
 }
 
 func TestInvalidParameter(t *testing.T) {
-	var cli cmd.KubeClient = &KubectlMock{}
-	rootCmd := cmd.NewKubeCommand(&cli)
-	rootCmd.SetArgs([]string{"test", "value"})
+	testCases := []struct {
+		name     string
+		args     []string
+		testFunc func(t *testing.T, args []string)
+	}{
+		{
+			name: "kubeconfig-file invalid parameter",
+			args: []string{
+				"--settings-volume=etc/config/settings",
+				"--configmap-name=ama-metrics-settings-configmap",
+				"--configmap-namespace=kube-system",
+			},
+			testFunc: func(t *testing.T, args []string) {
+				var cli cmd.KubeClient = &KubectlMock{}
+				rootCmd := cmd.NewKubeCommand(cli)
+				rootCmd.SetArgs([]string{"test", "value"})
 
-	err := rootCmd.Execute()
-	assert.EqualError(t, err, "invalid parameter: --kubeconfig-file is required")
+				err := rootCmd.Execute()
+				assert.EqualError(t, err, "invalid parameter: --kubeconfig-file is required")
+			},
+		},
+		{
+			name: "settings-volume invalid parameter",
+			args: []string{
+				"--kubeconfig-file=/config/fake/kubeconfig",
+				"--configmap-name=ama-metrics-settings-configmap",
+				"--configmap-namespace=kube-system",
+			},
+			testFunc: func(t *testing.T, args []string) {
+				var cli cmd.KubeClient = &KubectlMock{}
+				rootCmd := cmd.NewKubeCommand(cli)
+				rootCmd.SetArgs([]string{"test", "value"})
+
+				err := rootCmd.Execute()
+				assert.EqualError(t, err, "invalid parameter: --settings-volume is required")
+			},
+		},
+		{
+			name: "configmap-name invalid parameter",
+			args: []string{
+				"--kubeconfig-file=/config/fake/kubeconfig",
+				"--settings-volume=etc/config/settings",
+				"--configmap-namespace=kube-system",
+			},
+			testFunc: func(t *testing.T, args []string) {
+				var cli cmd.KubeClient = &KubectlMock{}
+				rootCmd := cmd.NewKubeCommand(cli)
+				rootCmd.SetArgs([]string{"test", "value"})
+
+				err := rootCmd.Execute()
+				assert.EqualError(t, err, "invalid parameter: --configmap-name is required")
+			},
+		},
+		{
+			name: "configmap-namespace invalid parameter",
+			args: []string{
+				"--kubeconfig-file=/config/fake/kubeconfig",
+				"--settings-volume=etc/config/settings",
+				"--configmap-name=ama-metrics-settings-configmap",
+			},
+			testFunc: func(t *testing.T, args []string) {
+				var cli cmd.KubeClient = &KubectlMock{}
+				rootCmd := cmd.NewKubeCommand(cli)
+				rootCmd.SetArgs([]string{"test", "value"})
+
+				err := rootCmd.Execute()
+				assert.EqualError(t, err, "invalid parameter: --configmap-namespace is required")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFunc(t, tc.args)
+		})
+	}
 }
 
 func TestSuccessCommandWhenConfigmapExists(t *testing.T) {
-	t.Logf("Case 1: Watch Create")
 	data := loadConfigmapFromFile(t, "../tests/settings-configmap-create.yaml")
-	fakeClient, watch := createFakeClient()
+	fakeClient, watchInterface := createFakeClient()
 	// the command runs indefinitely in a loop, therefore we need to cancel it after a while
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Simulate watch event
-	_, tmpDir := executeConfigmapWatch(t, ctx, fakeClient)
-	watch.Add(data)
+	tmpDir := executeConfigmapWatch(ctx, t, fakeClient)
+	watchInterface.Add(data)
 	time.Sleep(1 * time.Second)
 
 	// Wait for the context to be done
 	<-ctx.Done()
 
 	// Assert result
-	files, _ := ioutil.ReadDir(tmpDir)
+	files, _ := os.ReadDir(tmpDir)
 	assert.Equal(t, 9, len(files))
-	// TODO: Move these to the watch_test
-	assert.True(t, fileExists(files, "inotifysettingscreated"))
-	assert.True(t, fileExists(files, "default-targets-scrape-interval-settings"))
-	assert.True(t, fileExists(files, "pod-annotation-based-scraping"))
-	assert.True(t, fileExists(files, "prometheus-collector-settings"))
-	assert.True(t, fileExists(files, "schema-version"))
-	assert.True(t, fileExists(files, "config-version"))
-	assert.True(t, fileExists(files, "debug-mode"))
-	assert.True(t, fileExists(files, "default-scrape-settings-enabled"))
-	assert.True(t, fileExists(files, "default-targets-metrics-keep-list"))
-}
-
-func fileExists(files []fs.FileInfo, fileName string) bool {
-	for _, file := range files {
-		if file.Name() == fileName {
-			return true
-		}
-	}
-
-	return false
 }
 
 func loadConfigmapFromFile(t *testing.T, configmapFile string) *corev1.ConfigMap {
 	// Read file content
-	fileContent, err := ioutil.ReadFile(configmapFile)
+	fileContent, err := os.ReadFile(configmapFile)
 	if err != nil {
 		t.Fatalf("Error reading configmap test file: %s", err)
 	}
@@ -114,27 +171,9 @@ func loadConfigmapFromFile(t *testing.T, configmapFile string) *corev1.ConfigMap
 
 func createFakeClient() (kubernetes.Interface, *watch.RaceFreeFakeWatcher) {
 	fakeClient := testclient.NewSimpleClientset()
-	watch := watch.NewRaceFreeFake()
-	fakeClient.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(watch, nil))
-	return fakeClient, watch
-}
-
-func executeConfigmapWatch(t *testing.T, ctx context.Context, fakeClient kubernetes.Interface) (command *cobra.Command, settingsVolume string) {
-	// Implement the specific behavior for this test case
-	var cli cmd.KubeClient = &KubectlMock{
-		clientSet: fakeClient,
-	}
-	tmpDir := t.TempDir()
-	rootCmd := cmd.NewKubeCommand(&cli)
-	rootCmd.SetArgs([]string{"--kubeconfig-file=/config/fake/kubeconfig", "--settings-volume=" + tmpDir, "--configmap-name=ama-metrics-settings-configmap", "--configmap-namespace=kube-system"})
-
-	go func() {
-		if err := rootCmd.ExecuteContext(ctx); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			t.Fatalf("Command execution failed: %v", err)
-		}
-	}()
-
-	return rootCmd, tmpDir
+	watchInterface := watch.NewRaceFreeFake()
+	fakeClient.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(watchInterface, nil))
+	return fakeClient, watchInterface
 }
 
 // KubectlMock is a mock implementation of the KubeClient interface
@@ -147,6 +186,8 @@ type KubectlMock struct {
 func (cli *KubectlMock) CreateClientSet(kubeconfigFile, userAgent string) (kubernetes.Interface, error) {
 	if cli.clientSet == nil {
 		cli.clientSet = testclient.NewSimpleClientset()
+		cli.userAgent = userAgent
+		cli.kubeconfig = kubeconfigFile
 	}
 
 	return cli.clientSet, nil

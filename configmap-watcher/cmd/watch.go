@@ -94,23 +94,36 @@ func handleConfigmapUpdate(eventChannel <-chan watch.Event, logger *zap.Logger, 
 }
 
 func updateSettingsFiles(volumePath string, event watch.Event, logger *zap.Logger) error {
-	err := removeFileIfExists(path.Join(volumePath, watcherNotificationFile))
+	updatedConfigMap, ok := event.Object.(*corev1.ConfigMap)
+	if !ok {
+		return fmt.Errorf("unable to cast event settings to ConfigMap")
+	}
+
+	isCurrentVersion, err := isCurrentVersion(updatedConfigMap.ResourceVersion, volumePath)
+	if err != nil {
+		return err
+	}
+	if isCurrentVersion {
+		logger.Info("Configmap resource version is current. Skipping update.")
+		return nil
+	}
+
+	err = removeFileIfExists(path.Join(volumePath, watcherNotificationFile))
 	if err != nil {
 		return err
 	}
 
-	if updatedConfigMap, ok := event.Object.(*corev1.ConfigMap); ok {
-		for settingKey, settingValue := range updatedConfigMap.Data {
-			logger.Info(fmt.Sprintf("Creating/updating settings file: %s ", settingKey))
-			filePath := path.Join(volumePath, settingKey)
-			err = os.WriteFile(filePath, []byte(settingValue), fileMode)
-			if err != nil {
-				return fmt.Errorf("unable to create/update file '%s'. Error: %w", filePath, err)
-			}
+	for settingKey, settingValue := range updatedConfigMap.Data {
+		logger.Info(fmt.Sprintf("Creating/updating settings file: %s ", settingKey))
+		filePath := path.Join(volumePath, settingKey)
+		err = os.WriteFile(filePath, []byte(settingValue), fileMode)
+		if err != nil {
+			return fmt.Errorf("unable to create/update file '%s'. Error: %w", filePath, err)
 		}
 	}
 
-	_, err = os.Create(path.Join(volumePath, watcherNotificationFile))
+	logger.Info("Creating inotifysettingscreated file with resourceVersion " + updatedConfigMap.ResourceVersion)
+	err = os.WriteFile(path.Join(volumePath, watcherNotificationFile), []byte(updatedConfigMap.ResourceVersion), fileMode)
 	if err != nil {
 		return fmt.Errorf("unable to create inotifysettingscreated file. Error: %w", err)
 	}
@@ -164,4 +177,17 @@ func removeFileIfExists(filePath string) error {
 	}
 
 	return nil
+}
+
+func isCurrentVersion(resourceVersion, settingsVolume string) (bool, error) {
+	version, err := os.ReadFile(path.Join(settingsVolume, watcherNotificationFile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		fmt.Printf("An error occurred while reading the file: %s\n", err)
+		return false, err
+	}
+
+	return string(version) == resourceVersion, nil
 }
