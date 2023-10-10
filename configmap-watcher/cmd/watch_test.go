@@ -32,7 +32,6 @@ func TestWatchForChangesSuccessConfigmapAdded(t *testing.T) {
 	// Assert result
 	files, _ := os.ReadDir(tmpDir)
 	assert.Equal(t, 9, len(files))
-	// TODO: Move these to the watch_test
 	assert.True(t, fileExists(files, "inotifysettingscreated"))
 	assert.True(t, fileExists(files, "default-targets-scrape-interval-settings"))
 	assert.True(t, fileExists(files, "pod-annotation-based-scraping"))

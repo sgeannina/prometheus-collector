@@ -48,7 +48,7 @@ func TestSuccessCommandNoConfigmap(t *testing.T) {
 	<-ctx.Done()
 }
 
-func TestInvalidParameter(t *testing.T) {
+func TestInvalidParameters(t *testing.T) {
 	testCases := []struct {
 		name     string
 		args     []string
@@ -57,14 +57,14 @@ func TestInvalidParameter(t *testing.T) {
 		{
 			name: "kubeconfig-file invalid parameter",
 			args: []string{
-				"--settings-volume=etc/config/settings",
+				"--settings-volume=" + t.TempDir(),
 				"--configmap-name=ama-metrics-settings-configmap",
 				"--configmap-namespace=kube-system",
 			},
 			testFunc: func(t *testing.T, args []string) {
 				var cli cmd.KubeClient = &KubectlMock{}
 				rootCmd := cmd.NewKubeCommand(cli)
-				rootCmd.SetArgs([]string{"test", "value"})
+				rootCmd.SetArgs(args)
 
 				err := rootCmd.Execute()
 				assert.EqualError(t, err, "invalid parameter: --kubeconfig-file is required")
@@ -80,7 +80,7 @@ func TestInvalidParameter(t *testing.T) {
 			testFunc: func(t *testing.T, args []string) {
 				var cli cmd.KubeClient = &KubectlMock{}
 				rootCmd := cmd.NewKubeCommand(cli)
-				rootCmd.SetArgs([]string{"test", "value"})
+				rootCmd.SetArgs(args)
 
 				err := rootCmd.Execute()
 				assert.EqualError(t, err, "invalid parameter: --settings-volume is required")
@@ -90,13 +90,13 @@ func TestInvalidParameter(t *testing.T) {
 			name: "configmap-name invalid parameter",
 			args: []string{
 				"--kubeconfig-file=/config/fake/kubeconfig",
-				"--settings-volume=etc/config/settings",
+				"--settings-volume=" + t.TempDir(),
 				"--configmap-namespace=kube-system",
 			},
 			testFunc: func(t *testing.T, args []string) {
 				var cli cmd.KubeClient = &KubectlMock{}
 				rootCmd := cmd.NewKubeCommand(cli)
-				rootCmd.SetArgs([]string{"test", "value"})
+				rootCmd.SetArgs(args)
 
 				err := rootCmd.Execute()
 				assert.EqualError(t, err, "invalid parameter: --configmap-name is required")
@@ -106,13 +106,13 @@ func TestInvalidParameter(t *testing.T) {
 			name: "configmap-namespace invalid parameter",
 			args: []string{
 				"--kubeconfig-file=/config/fake/kubeconfig",
-				"--settings-volume=etc/config/settings",
+				"--settings-volume=" + t.TempDir(),
 				"--configmap-name=ama-metrics-settings-configmap",
 			},
 			testFunc: func(t *testing.T, args []string) {
 				var cli cmd.KubeClient = &KubectlMock{}
 				rootCmd := cmd.NewKubeCommand(cli)
-				rootCmd.SetArgs([]string{"test", "value"})
+				rootCmd.SetArgs(args)
 
 				err := rootCmd.Execute()
 				assert.EqualError(t, err, "invalid parameter: --configmap-namespace is required")

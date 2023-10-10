@@ -185,9 +185,8 @@ func isCurrentVersion(resourceVersion, settingsVolume string) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		fmt.Printf("An error occurred while reading the file: %s\n", err)
 		return false, err
 	}
 
-	return string(version) == resourceVersion, nil
+	return len(version) > 0 && string(version) == resourceVersion, nil
 }

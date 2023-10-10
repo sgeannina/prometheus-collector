@@ -87,7 +87,7 @@ func NewKubeCommand(cli KubeClient) *cobra.Command {
 	}
 
 	rootCmd.Flags().StringVar(&kubeconfigFile, "kubeconfig-file", "", "Path to the kubeconfig")
-	rootCmd.Flags().StringVar(&configmapNamespace, "configmap-namespace", "kube-system", "The configmap namespace")
+	rootCmd.Flags().StringVar(&configmapNamespace, "configmap-namespace", "", "The configmap namespace")
 	rootCmd.Flags().StringVar(&configmapName, "configmap-name", "", "The configmap name")
 	rootCmd.Flags().StringVar(&settingsVolume, "settings-volume", "", "Directory where the settings files are stored")
 
