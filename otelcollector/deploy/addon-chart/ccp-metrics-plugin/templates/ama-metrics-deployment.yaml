@@ -34,10 +34,10 @@ spec:
           resources:
             limits:
               cpu: 1
-              memory: 500Mi
+              memory: 1Gi
             requests:
               cpu: 150m
-              memory: 250Mi
+              memory: 500Mi
           env:
             - name: CLUSTER
               value: "{{ .Values.global.commonGlobals.Customer.AzureResourceID }}"
