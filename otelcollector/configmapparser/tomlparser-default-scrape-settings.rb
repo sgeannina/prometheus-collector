@@ -23,11 +23,11 @@ LOGGING_PREFIX = "default-scrape-settings"
 @windowsexporterEnabled = false
 @windowskubeproxyEnabled = false
 @kappiebasicEnabled = true
-@kubecontrollermanagerEnabled = false
-@kubeschedulerEnabled = false
-@kubeapiserverEnabled = false
-@clusterautoscalerEnabled = false
-@etcdEnabled = false
+@ccp_kubecontrollermanagerEnabled = false
+@ccp_kubeschedulerEnabled = false
+@ccp_apiserverEnabled = false
+@ccp_clusterautoscalerEnabled = false
+@ccp_etcdEnabled = false
 @noDefaultsEnabled = false
 @sendDSUpMetric = false
 
@@ -105,25 +105,25 @@ def populateSettingValuesFromConfigMap(parsedConfig)
       @kappiebasicEnabled = parsedConfig[:kappiebasic]
       puts "config::Using configmap scrape settings for kappiebasic: #{@kappiebasicEnabled}"
     end
-    if !parsedConfig[:"kube-controller-manager"].nil?
-      @kubecontrollermanagerEnabled = parsedConfig[:"kube-controller-manager"]
-      puts "config::Using configmap scrape settings for kube-controller-manager: #{@kubecontrollermanagerEnabled}"
+    if !parsedConfig[:"controlplane-kube-controller-manager"].nil?
+      @ccp_kubecontrollermanagerEnabled = parsedConfig[:"controlplane-kube-controller-manager"]
+      puts "config::Using configmap scrape settings for controlplane-kube-controller-manager: #{@ccp_kubecontrollermanagerEnabled}"
     end
-    if !parsedConfig[:"kube-scheduler"].nil?
-      @kubeschedulerEnabled = parsedConfig[:"kube-scheduler"]
-      puts "config::Using configmap scrape settings for kube-scheduler: #{@kubeschedulerEnabled}"
+    if !parsedConfig[:"controlplane-kube-scheduler"].nil?
+      @ccp_kubeschedulerEnabled = parsedConfig[:"controlplane-kube-scheduler"]
+      puts "config::Using configmap scrape settings for controlplane-kube-scheduler: #{@ccp_kubeschedulerEnabled}"
     end
-    if !parsedConfig[:"kube-apiserver"].nil?
-      @kubeapiserverEnabled = parsedConfig[:"kube-apiserver"]
-      puts "config::Using configmap scrape settings for kube-apiserver: #{@kubeapiserverEnabled}"
+    if !parsedConfig[:"controlplane-apiserver"].nil?
+      @ccp_apiserverEnabled = parsedConfig[:"controlplane-apiserver"]
+      puts "config::Using configmap scrape settings for controlplane-apiserver: #{@ccp_apiserverEnabled}"
     end
-    if !parsedConfig[:"cluster-autoscaler"].nil?
-      @clusterautoscalerEnabled = parsedConfig[:"cluster-autoscaler"]
-      puts "config::Using configmap scrape settings for cluster-autoscaler: #{@clusterautoscalerEnabled}"
+    if !parsedConfig[:"controlplane-cluster-autoscaler"].nil?
+      @ccp_clusterautoscalerEnabled = parsedConfig[:"controlplane-cluster-autoscaler"]
+      puts "config::Using configmap scrape settings for controlplane-cluster-autoscaler: #{@ccp_clusterautoscalerEnabled}"
     end
-    if !parsedConfig[:"etcd"].nil?
-      @etcdEnabled = parsedConfig[:"etcd"]
-      puts "config::Using configmap scrape settings for etcd: #{@etcdEnabled}"
+    if !parsedConfig[:"controlplane-etcd"].nil?
+      @ccp_etcdEnabled = parsedConfig[:"controlplane-etcd"]
+      puts "config::Using configmap scrape settings for controlplane-etcd: #{@ccp_etcdEnabled}"
     end
     if !parsedConfig[:"prometheuscollectorhealth-controlplane"].nil?
       @prometheusCollectorHealthCcpEnabled = parsedConfig[:"prometheuscollectorhealth-controlplane"]
@@ -135,7 +135,7 @@ def populateSettingValuesFromConfigMap(parsedConfig)
       windowsDaemonset = true
     end
 
-    ccpmetricsEnabled = @isCcpMetricsDeploymentEnabled && (@kubecontrollermanagerEnabled || @kubeschedulerEnabled || @kubeapiserverEnabled || @clusterautoscalerEnabled || @etcdEnabled || @prometheusCollectorHealthCcpEnabled)
+    ccpmetricsEnabled = @isCcpMetricsDeploymentEnabled && (@ccp_kubecontrollermanagerEnabled || @ccp_kubeschedulerEnabled || @ccp_apiserverEnabled || @ccp_clusterautoscalerEnabled || @ccp_etcdEnabled || @prometheusCollectorHealthCcpEnabled)
     if ENV["MODE"].nil? && ENV["MODE"].strip.downcase == "advanced"
       controllerType = ENV["CONTROLLER_TYPE"]
       if controllerType == "DaemonSet" && ENV["OS_TYPE"].downcase == "windows" && !@windowsexporterEnabled && !@windowskubeproxyEnabled && !@kubeletEnabled && !@prometheusCollectorHealthEnabled && !@kappiebasicEnabled
@@ -178,11 +178,11 @@ def disableScrapeTargetsByDeployment
   else
     ConfigParseErrorLogger.logWarning(LOGGING_PREFIX, "CCP_METRICS mode is disabled. Disable targets from Customer Control Plane after config map processing....")
 
-    @clusterautoscalerEnabled = false
-    @kubecontrollermanagerEnabled = false
-    @kubeschedulerEnabled = false
-    @kubeapiserverEnabled = false
-    @etcdEnabled = false
+    @ccp_clusterautoscalerEnabled = false
+    @ccp_kubecontrollermanagerEnabled = false
+    @ccp_kubeschedulerEnabled = false
+    @ccp_apiserverEnabled = false
+    @ccp_etcdEnabled = false
     @prometheusCollectorHealthCcpEnabled = false
   end
 end
@@ -234,11 +234,11 @@ if !file.nil?
   file.write($export + "AZMON_PROMETHEUS_WINDOWSKUBEPROXY_SCRAPING_ENABLED=#{@windowskubeproxyEnabled}\n")
   file.write($export + "AZMON_PROMETHEUS_KAPPIEBASIC_SCRAPING_ENABLED=#{@kappiebasicEnabled}\n")
   file.write($export + "AZMON_PROMETHEUS_POD_ANNOTATION_SCRAPING_ENABLED=#{@podannotationEnabled}\n")
-  file.write($export + "AZMON_PROMETHEUS_KUBE_CONTROLLER_MANAGER_SCRAPING_ENABLED=#{@kubecontrollermanagerEnabled}\n")
-  file.write($export + "AZMON_PROMETHEUS_KUBE_SCHEDULER_SCRAPING_ENABLED=#{@kubeschedulerEnabled}\n")
-  file.write($export + "AZMON_PROMETHEUS_KUBE_APISERVER_SCRAPING_ENABLED=#{@kubeapiserverEnabled}\n")
-  file.write($export + "AZMON_PROMETHEUS_CLUSTER_AUTOSCALER_SCRAPING_ENABLED=#{@clusterautoscalerEnabled}\n")
-  file.write($export + "AZMON_PROMETHEUS_ETCD_SCRAPING_ENABLED=#{@etcdEnabled}\n")
+  file.write($export + "AZMON_PROMETHEUS_CCP_KUBE_CONTROLLER_MANAGER_SCRAPING_ENABLED=#{@ccp_kubecontrollermanagerEnabled}\n")
+  file.write($export + "AZMON_PROMETHEUS_CCP_KUBE_SCHEDULER_SCRAPING_ENABLED=#{@ccp_kubeschedulerEnabled}\n")
+  file.write($export + "AZMON_PROMETHEUS_CCP_APISERVER_SCRAPING_ENABLED=#{@ccp_apiserverEnabled}\n")
+  file.write($export + "AZMON_PROMETHEUS_CCP_CLUSTER_AUTOSCALER_SCRAPING_ENABLED=#{@ccp_clusterautoscalerEnabled}\n")
+  file.write($export + "AZMON_PROMETHEUS_CCP_ETCD_SCRAPING_ENABLED=#{@ccp_etcdEnabled}\n")
   file.write($export + "AZMON_PROMETHEUS_COLLECTOR_HEALTH_CCP_SCRAPING_ENABLED=#{@prometheusCollectorHealthCcpEnabled}\n")
   # Close file after writing all metric collection setting environment variables
   file.close

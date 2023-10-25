@@ -112,6 +112,7 @@ def AppendMetricRelabelConfig(yamlConfigFile, keepListRegex)
   begin
     ConfigParseErrorLogger.log(LOGGING_PREFIX, "Adding keep list regex or minimal ingestion regex for #{yamlConfigFile}")
     config = YAML.load(File.read(yamlConfigFile))
+    #TODO: Add drop
     keepListMetricRelabelConfig = [{ "source_labels" => ["__name__"], "action" => "keep", "regex" => keepListRegex }]
 
     # Iterate through each scrape config and append metric relabel config for keep list
@@ -341,9 +342,9 @@ def populateDefaultPrometheusConfig
       end
     end
 
-    if !ENV["AZMON_PROMETHEUS_KUBE_CONTROLLER_MANAGER_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_KUBE_CONTROLLER_MANAGER_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
-      kubecontrollermanagerMetricsKeepListRegex = @regexHash["KUBE_CONTROLLER_MANAGER_METRICS_KEEP_LIST_REGEX"]
-      kubecontrollermanagerScrapeInterval = @intervalHash["KUBE_CONTROLLER_MANAGER_SCRAPE_INTERVAL"]
+    if !ENV["AZMON_PROMETHEUS_CCP_KUBE_CONTROLLER_MANAGER_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_CCP_KUBE_CONTROLLER_MANAGER_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
+      kubecontrollermanagerMetricsKeepListRegex = @regexHash["CCP_KUBE_CONTROLLER_MANAGER_METRICS_KEEP_LIST_REGEX"]
+      kubecontrollermanagerScrapeInterval = @intervalHash["CCP_KUBE_CONTROLLER_MANAGER_SCRAPE_INTERVAL"]
 
       UpdateScrapeIntervalConfig(@kubecontrollermanagerDefaultFile, kubecontrollermanagerScrapeInterval)
       if !kubecontrollermanagerMetricsKeepListRegex.nil? && !kubecontrollermanagerMetricsKeepListRegex.empty?
@@ -355,9 +356,9 @@ def populateDefaultPrometheusConfig
       defaultConfigs.push(@kubecontrollermanagerDefaultFile)
     end
 
-    if !ENV["AZMON_PROMETHEUS_KUBE_SCHEDULER_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_KUBE_SCHEDULER_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
-      kubeschedulerMetricsKeepListRegex = @regexHash["KUBE_SCHEDULER_METRICS_KEEP_LIST_REGEX"]
-      kubeschedulerScrapeInterval = @intervalHash["KUBE_SCHEDULER_SCRAPE_INTERVAL"]
+    if !ENV["AZMON_PROMETHEUS_CCP_KUBE_SCHEDULER_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_CCP_KUBE_SCHEDULER_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
+      kubeschedulerMetricsKeepListRegex = @regexHash["CCP_KUBE_SCHEDULER_METRICS_KEEP_LIST_REGEX"]
+      kubeschedulerScrapeInterval = @intervalHash["CCP_KUBE_SCHEDULER_SCRAPE_INTERVAL"]
 
       UpdateScrapeIntervalConfig(@kubeschedulerDefaultFile, kubeschedulerScrapeInterval)
       if !kubeschedulerMetricsKeepListRegex.nil? && !kubeschedulerMetricsKeepListRegex.empty?
@@ -369,9 +370,9 @@ def populateDefaultPrometheusConfig
       defaultConfigs.push(@kubeschedulerDefaultFile)
     end
 
-    if !ENV["AZMON_PROMETHEUS_KUBE_APISERVER_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_KUBE_APISERVER_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
-      kubeapiserverMetricsKeepListRegex = @regexHash["KUBE_APISERVER_METRICS_KEEP_LIST_REGEX"]
-      kubeapiserverScrapeInterval = @intervalHash["KUBE_APISERVER_SCRAPE_INTERVAL"]
+    if !ENV["AZMON_PROMETHEUS_CCP_APISERVER_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_CCP_APISERVER_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
+      kubeapiserverMetricsKeepListRegex = @regexHash["CCP_APISERVER_METRICS_KEEP_LIST_REGEX"]
+      kubeapiserverScrapeInterval = @intervalHash["CCP_APISERVER_SCRAPE_INTERVAL"]
 
       UpdateScrapeIntervalConfig(@kubeapiserverDefaultFile, kubeapiserverScrapeInterval)
       if !kubeapiserverMetricsKeepListRegex.nil? && !kubeapiserverMetricsKeepListRegex.empty?
@@ -383,9 +384,9 @@ def populateDefaultPrometheusConfig
       defaultConfigs.push(@kubeapiserverDefaultFile)
     end
 
-    if !ENV["AZMON_PROMETHEUS_CLUSTER_AUTOSCALER_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_CLUSTER_AUTOSCALER_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
-      clusterautoscalerMetricsKeepListRegex = @regexHash["CLUSTER_AUTOSCALER_METRICS_KEEP_LIST_REGEX"]
-      clusterautoscalerScrapeInterval = @intervalHash["CLUSTER_AUTOSCALER_SCRAPE_INTERVAL"]
+    if !ENV["AZMON_PROMETHEUS_CCP_CLUSTER_AUTOSCALER_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_CCP_CLUSTER_AUTOSCALER_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
+      clusterautoscalerMetricsKeepListRegex = @regexHash["CCP_CLUSTER_AUTOSCALER_METRICS_KEEP_LIST_REGEX"]
+      clusterautoscalerScrapeInterval = @intervalHash["CCP_CLUSTER_AUTOSCALER_SCRAPE_INTERVAL"]
 
       UpdateScrapeIntervalConfig(@clusterautoscalerDefaultFile, clusterautoscalerScrapeInterval)
       if !clusterautoscalerMetricsKeepListRegex.nil? && !clusterautoscalerMetricsKeepListRegex.empty?
@@ -397,9 +398,9 @@ def populateDefaultPrometheusConfig
       defaultConfigs.push(@clusterautoscalerDefaultFile)
     end
 
-    if !ENV["AZMON_PROMETHEUS_ETCD_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_ETCD_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
-      etcdMetricsKeepListRegex = @regexHash["ETCD_METRICS_KEEP_LIST_REGEX"]
-      etcdScrapeInterval = @intervalHash["ETCD_SCRAPE_INTERVAL"]
+    if !ENV["AZMON_PROMETHEUS_CCP_ETCD_SCRAPING_ENABLED"].nil? && ENV["AZMON_PROMETHEUS_CCP_ETCD_SCRAPING_ENABLED"].downcase == "true" && currentControllerType == @replicasetControllerType
+      etcdMetricsKeepListRegex = @regexHash["CCP_ETCD_METRICS_KEEP_LIST_REGEX"]
+      etcdScrapeInterval = @intervalHash["CCP_ETCD_SCRAPE_INTERVAL"]
 
       UpdateScrapeIntervalConfig(@etcdDefaultFile, etcdScrapeInterval)
       if !etcdMetricsKeepListRegex.nil? && !etcdMetricsKeepListRegex.empty?
