@@ -74,6 +74,9 @@ end
 @ccp_clusterautoscalerRegex_minimal_mac = "rest_client_requests_total|cluster_autoscaler_((last_activity|cluster_safe_to_autoscale|failed_scale_ups_total|scale_down_in_cooldown|scaled_up_nodes_total|unneeded_nodes_count|unschedulable_pods_count|nodes_count))|cloudprovider_azure_api_request_(errors|duration_seconds_(bucket|count))"
 @ccp_etcdRegex_minimal_mac = "etcd_memory_in_bytes|etcd_cpu_in_cores|etcd_db_limit_in_bytes|etcd_db_max_size_in_bytes|etcd_db_fragmentation_rate|etcd_db_total_object_count|etcd_db_top_N_object_counts_by_type|etcd_db_top_N_object_size_by_type|etcd2_enabled"
 
+# Regex to exclude metrics
+@ccp_apiserverRegex_exclusions = /\A(\()?(?:go|process|(.*\|)*(process|go)(_)?\|)/
+
 # Use parser to parse the configmap toml file to a ruby structure
 def parseConfigMap
   begin
@@ -283,8 +286,8 @@ def populateSettingValuesFromConfigMap(parsedConfig)
   if !ccp_apiserverRegex.nil? && ccp_apiserverRegex.kind_of?(String)
     if !ccp_apiserverRegex.empty?
       if isValidRegex(ccp_apiserverRegex) == true
-        @ccp_apiserverRegex = ccp_apiserverRegex
         ConfigParseErrorLogger.log(LOGGING_PREFIX, "Using configmap metrics keep list regex for kube-apiserver")
+        @ccp_apiserverRegex = excludeMetricsRegex(ccp_apiserverRegex, @ccp_apiserverRegex_exclusions)
       else
         ConfigParseErrorLogger.logError(LOGGING_PREFIX, "Invalid keep list regex for kube-apiserver")
       end
@@ -415,7 +418,7 @@ regexHash["POD_ANNOTATION_METRICS_KEEP_LIST_REGEX"] = @podannotationRegex
 regexHash["KAPPIEBASIC_METRICS_KEEP_LIST_REGEX"] = @kappiebasicRegex
 regexHash["CCP_KUBE_CONTROLLER_MANAGER_METRICS_KEEP_LIST_REGEX"] = @ccp_kubecontrollermanagerRegex
 regexHash["CCP_KUBE_SCHEDULER_METRICS_KEEP_LIST_REGEX"] = @ccp_kubeschedulerRegex
-regexHash["CCP_KUBE_APISERVER_METRICS_KEEP_LIST_REGEX"] = @ccp_apiserverRegex
+regexHash["CCP_APISERVER_METRICS_KEEP_LIST_REGEX"] = @ccp_apiserverRegex
 regexHash["CCP_CLUSTER_AUTOSCALER_METRICS_KEEP_LIST_REGEX"] = @ccp_clusterautoscalerRegex
 regexHash["CCP_ETCD_METRICS_KEEP_LIST_REGEX"] = @ccp_etcdRegex
 
