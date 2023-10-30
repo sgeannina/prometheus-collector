@@ -28,8 +28,7 @@ RSpec.describe 'When passing a string to the splitMetricsRegex method' do
   end
 end
 
-# TODO: keep process_start_time
-$exclusionsRegex=/\A(\()?(?:go|process|(.*\|)*(process|go)(_)?\|)/
+$exclusionsRegex=/\A(\()?(?:go|process(?!_start_time_seconds)|(.*\|)*(process|go)(_)?\|)/
 RSpec.describe 'When passing a string to the excludeMetricsRegex method' do
   let(:exclusions_regex) { $exclusionsRegex }
   it 'correctly excludes metrics from simple keep list' do
@@ -75,6 +74,13 @@ RSpec.describe 'When passing a string to the excludeMetricsRegex method' do
   it 'correctly will not exclude metrics from keep list if keywords are not in the input string' do
     input_string = "kube_pod_container_status_(restarts_total|waiting_reason|last_terminated_reason)|kube_deployment_(status_(condition|replicas(_(available|updated|ready)))|labels|spec_replicas)|kube_cronjob_(status_(last_schedule_time))|kube_job_status_(failed|start_time)*"
     expected_result = "kube_pod_container_status_(restarts_total|waiting_reason|last_terminated_reason)|kube_deployment_(status_(condition|replicas(_(available|updated|ready)))|labels|spec_replicas)|kube_cronjob_(status_(last_schedule_time))|kube_job_status_(failed|start_time)*"
+
+    expect(excludeMetricsRegex(input_string, exclusions_regex)).to eq(expected_result)
+  end
+
+  it 'correctly will not exclude process_start_time_seconds from keep list' do
+    input_string = "kube_pod_container_status_(restarts_total|waiting_reason|last_terminated_reason)|process_start_time_seconds|process_max_fds|go_cpu_classes_gc_mark_(assist_cpu_seconds_total|dedicated_cpu_seconds_total)"
+    expected_result = "kube_pod_container_status_(restarts_total|waiting_reason|last_terminated_reason)|process_start_time_seconds"
 
     expect(excludeMetricsRegex(input_string, exclusions_regex)).to eq(expected_result)
   end

@@ -75,7 +75,7 @@ end
 @ccp_etcdRegex_minimal_mac = "etcd_memory_in_bytes|etcd_cpu_in_cores|etcd_db_limit_in_bytes|etcd_db_max_size_in_bytes|etcd_db_fragmentation_rate|etcd_db_total_object_count|etcd_db_top_N_object_counts_by_type|etcd_db_top_N_object_size_by_type|etcd2_enabled"
 
 # Regex to exclude metrics
-@ccp_apiserverRegex_exclusions = /\A(\()?(?:go|process|(.*\|)*(process|go)(_)?\|)/
+@ccp_apiserverRegex_exclusions = /\A(\()?(?:go|process(?!_start_time_seconds)|(.*\|)*(process|go)(_)?\|)/
 
 # Use parser to parse the configmap toml file to a ruby structure
 def parseConfigMap
