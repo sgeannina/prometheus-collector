@@ -1,7 +1,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ama-metrics-ccp-reader
+  name: ama-metrics-reader
 rules:
   - apiGroups: [""]
     resources:
@@ -18,9 +18,9 @@ rules:
       ]
     verbs: ["list", "get", "watch"]
   - apiGroups:
-    - networking.k8s.io
+      - networking.k8s.io
     resources:
-    - ingresses
+      - ingresses
     verbs: ["list", "get", "watch"]
   - apiGroups: [""]
     resources: ["secrets"]
@@ -31,3 +31,14 @@ rules:
   - apiGroups: ["clusterconfig.azure.com"]
     resources: ["azureclusteridentityrequests", "azureclusteridentityrequests/status"]
     verbs: ["get", "update", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: kube-system
+  name: secret-reader
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["aad-msi-auth-token"]
+    verbs: ["get", "watch"]

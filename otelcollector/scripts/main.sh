@@ -47,18 +47,16 @@ echo_var "CLUSTER" "$CLUSTER"
 
 # wait for configmap sync container to finish initialization
 settingsChangedFile="/etc/config/settings/inotifysettingscreated"
-if [ "${CCP_METRICS_ENABLED}" == "true" ] && [ ! -f $settingsChangedFile ]; then
+if [ "${CCP_METRICS_ENABLED}" == "true" ]; then
   # Disable appinsights telemetry for ccp metrics
   export DISABLE_TELEMETRY=true
-  if [ ! -f $settingsChangedFile ]; then
-    echo "Waiting for ama-metrics-config-sync container to finish initialization..."
-    while true; do
-      event=$(inotifywait -q -e create --format '%f' $(dirname "$settingsChangedFile"))
-      if [[ "$event" == "$(basename "$settingsChangedFile")" ]]; then
+  echo "Waiting for configmap settings sidecar to finish initialization..."
+  while [ ! -f $settingsChangedFile ]; do
+    if inotifywait -q -e create --format '%f' $(dirname "$settingsChangedFile") && [[ -e "$settingsChangedFile" ]]; then
+        echo "Settings loaded."
         break
-      fi
-    done
-  fi
+    fi
+  done
 fi
 
 #Run inotify as a daemon to track changes to the mounted configmap.

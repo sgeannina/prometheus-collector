@@ -1,12 +1,26 @@
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ama-metrics-ccp-clusterrolebinding
+  name: ama-metrics-clusterrolebinding
 subjects:
   - kind: ServiceAccount
-    name: ama-metrics-ccp-serviceaccount
+    name: ama-metrics-serviceaccount
     namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: ama-metrics-ccp-reader
+  name: ama-metrics-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secret-reader-binding
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: ama-metrics-serviceaccount
+    namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
+roleRef:
+  kind: Role
+  name: secret-reader
   apiGroup: rbac.authorization.k8s.io

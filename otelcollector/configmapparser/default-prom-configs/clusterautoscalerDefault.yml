@@ -1,5 +1,5 @@
   scrape_configs:
-  - job_name: cluster-autoscaler
+  - job_name: controlplane-cluster-autoscaler
     scrape_interval: $$SCRAPE_INTERVAL$$
     follow_redirects: false
     kubernetes_sd_configs:
@@ -24,5 +24,5 @@
         target_label: __address__
       - source_labels: [ __meta_kubernetes_pod_name ]
         regex: (.*)
-        target_label: pod
+        target_label: instance
         action: replace

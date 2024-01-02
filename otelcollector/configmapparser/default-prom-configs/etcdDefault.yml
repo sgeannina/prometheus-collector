@@ -1,5 +1,5 @@
   scrape_configs:
-  - job_name: etcd
+  - job_name: controlplane-etcd
     scrape_interval: $$SCRAPE_INTERVAL$$
     follow_redirects: false
     scheme: https
@@ -19,5 +19,5 @@
         regex: etcd;2379
       - source_labels: [ __meta_kubernetes_pod_name ]
         regex: (.*)
-        target_label: pod
+        target_label: instance
         action: replace

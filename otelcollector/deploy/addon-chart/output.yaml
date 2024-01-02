@@ -1,8 +1,93 @@
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-serviceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ama-metrics-serviceaccount
+  namespace: 6548620671d73d0001715887
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-clusterRole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ama-metrics-reader
+rules:
+  - apiGroups: [""]
+    resources:
+      [
+        "pods",
+        "nodes",
+        "nodes/stats",
+        "nodes/metrics",
+        "nodes/proxy",
+        "namespaces",
+        "services",
+        "endpoints",
+        "ingress"
+      ]
+    verbs: ["list", "get", "watch"]
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs: ["list", "get", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["aad-msi-auth-token"]
+    verbs: ["get", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+  - apiGroups: ["clusterconfig.azure.com"]
+    resources: ["azureclusteridentityrequests", "azureclusteridentityrequests/status"]
+    verbs: ["get", "update", "list", "create"]
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-clusterRoleBinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ama-metrics-clusterrolebinding
+subjects:
+  - kind: ServiceAccount
+    name: ama-metrics-serviceaccount
+    namespace: 6548620671d73d0001715887
+roleRef:
+  kind: ClusterRole
+  name: ama-metrics-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-clusterRole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: kube-system
+  name: secret-reader
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["aad-msi-auth-token"]
+    verbs: ["get", "watch"]
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-clusterRoleBinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secret-reader-binding
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: ama-metrics-serviceaccount
+    namespace: 6548620671d73d0001715887
+roleRef:
+  kind: Role
+  name: secret-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: ama-metrics-cpp/templates/ama-metrics-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ama-metrics-ccp
-  namespace: {{ .Values.global.commonGlobals.Customer.Namespace }}
+  namespace: 6548620671d73d0001715887
   labels:
     component: ama-metrics-ccp
 spec:
@@ -29,7 +114,7 @@ spec:
       serviceAccountName: ama-metrics-serviceaccount
       containers:
         - name: prometheus-collector
-          image: "{{ .Values.AzureMonitorMetrics.ImageRepository }}:{{ .Values.AzureMonitorMetrics.ImageTag }}"
+          image: "mcr.microsoft.com/azuremonitor/containerinsights/cidev/prometheus-collector/images:6.8.0-ccp-shell-removal-branch-11-07-2023-ecf80996"
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -40,9 +125,9 @@ spec:
               memory: 500Mi
           env:
             - name: CLUSTER
-              value: "{{ .Values.global.commonGlobals.Customer.AzureResourceID }}"
+              value: "/subscriptions/feb5b150-60fe-4441-be73-8c02a524f55a/resourceGroups/standalone-231027inzcx1/providers/Microsoft.ContainerService/managedClusters/standalone-231027inzcx1-cx-1"
             - name: AKSREGION
-              value: "{{ .Values.global.commonGlobals.Region }}"
+              value: "eastus"
             - name: MAC
               value: "true"
             - name: CCP_METRICS_ENABLED
@@ -50,7 +135,7 @@ spec:
             - name: AZMON_COLLECT_ENV
               value: "false"
             - name: customEnvironment
-              value: "{{ lower .Values.global.commonGlobals.CloudEnvironment }}"
+              value: "azurepubliccloud"
             - name: OMS_TLD
               value: "opinsights.azure.com"
             - name: CONTROLLER_TYPE
@@ -90,7 +175,7 @@ spec:
             - name: NODE_EXPORTER_VERSION
               value: "v1.5.0" # Replace this with the version shipped by default
             - name: AGENT_VERSION
-              value: {{ .Values.AzureMonitorMetrics.ImageTag }}
+              value: 6.8.0-ccp-shell-removal-branch-11-07-2023-ecf80996
             - name: MODE
               value: "advanced" # only supported mode is 'advanced', any other value will be the default/non-advance mode
             - name: WINMODE
